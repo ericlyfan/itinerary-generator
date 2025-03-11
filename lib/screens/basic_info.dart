@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:syncfusion_flutter_datepicker/datepicker.dart';
+import '../services/api_services.dart';
 
 class BasicInfoStepper extends StatefulWidget {
   const BasicInfoStepper({super.key});
@@ -18,6 +19,8 @@ class _BasicInfoStepperState extends State<BasicInfoStepper> {
   bool _isLocationExpanded = true;
   bool _isDateExpanded = false;
   bool _isGuestsExpanded = false;
+  List<String> _placeSuggestions = [];
+  final PlacesApiService _placesApiService = PlacesApiService();
 
   DateTime? _startDate;
   DateTime? _endDate;
@@ -89,24 +92,53 @@ class _BasicInfoStepperState extends State<BasicInfoStepper> {
                             prefixIcon: Icon(Icons.search),
                             border: OutlineInputBorder(),
                           ),
+                          onChanged: (input) async {
+                            if (input.isNotEmpty) {
+                              try {
+                                // Call your PlacesApiService to fetch live suggestions
+                                final suggestions = await _placesApiService.fetchPlaceSuggestions(
+                                  input,
+                                );
+                                setState(() {
+                                  _placeSuggestions = suggestions;
+                                });
+                              } catch (e) {
+                                setState(() {
+                                  _placeSuggestions = [];
+                                });
+                              }
+                            } else {
+                              setState(() {
+                                _placeSuggestions = [];
+                              });
+                            }
+                          },
                         ),
                         const SizedBox(height: 10),
-                        // Mock search results - would be dynamic in a real app
-                        const ListTile(
-                          leading: Icon(Icons.location_on),
-                          title: Text('Paris, France'),
-                          dense: true,
-                        ),
-                        const ListTile(
-                          leading: Icon(Icons.location_on),
-                          title: Text('Barcelona, Spain'),
-                          dense: true,
-                        ),
-                        const ListTile(
-                          leading: Icon(Icons.location_on),
-                          title: Text('Tokyo, Japan'),
-                          dense: true,
-                        ),
+                        if (_placeSuggestions.isNotEmpty)
+                          ListBody(
+                            children:
+                                _placeSuggestions.map((suggestion) {
+                                  return ListTile(
+                                    leading: const Icon(Icons.location_on_rounded),
+                                    title: Text(
+                                      suggestion,
+                                      style: Theme.of(
+                                        context,
+                                      ).textTheme.bodySmall?.copyWith(color: Colors.black),
+                                    ),
+                                    dense: true,
+                                    onTap: () {
+                                      setState(() {
+                                        _locationController.text = suggestion;
+                                        _placeSuggestions = [];
+                                        _isLocationExpanded = false;
+                                        _isDateExpanded = true;
+                                      });
+                                    },
+                                  );
+                                }).toList(),
+                          ),
                       ],
                     ),
                   ),

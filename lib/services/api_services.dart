@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class PlacesApiService {
+  PlacesApiService();
   final String apiKey = dotenv.env['GOOGLE_PLACES_API_KEY'] ?? '';
 
   Future<List<String>> fetchPlaceSuggestions(String input) async {

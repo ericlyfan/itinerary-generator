@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'screens/landing_screen.dart';
 
 // Main entry point of the app
-void main() {
+Future<void> main() async {
+  await dotenv.load(fileName: './.env');
   runApp(const TravelItineraryApp());
 }
 
@@ -45,10 +47,18 @@ class TravelItineraryApp extends StatelessWidget {
         textButtonTheme: TextButtonThemeData(
           style: TextButton.styleFrom(foregroundColor: Colors.black),
         ),
+        textSelectionTheme: const TextSelectionThemeData(
+          cursorColor: Colors.black,
+          selectionColor: Colors.black26, // Or any other color you prefer
+          selectionHandleColor: Colors.black,
+        ),
         inputDecorationTheme: const InputDecorationTheme(
           labelStyle: TextStyle(color: Colors.black),
           border: OutlineInputBorder(),
           hintStyle: TextStyle(color: Colors.grey),
+          focusedBorder: OutlineInputBorder(
+            // Set focused border color to black
+          ),
         ),
       ),
       home: const LandingScreen(),

@@ -16,7 +16,7 @@ class PlacesApiService {
       final List predictions = data['predictions'];
       return predictions.map((prediction) => prediction['description'] as String).toList();
     } else {
-      throw Exception('Failed to load suggestionss');
+      throw Exception('Failed to load suggestions');
     }
   }
 }

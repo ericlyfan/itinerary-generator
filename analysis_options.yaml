@@ -1,0 +1,31 @@
+include: package:flutter_lints/flutter.yaml
+
+linter:
+  rules:
+    # Good Practices
+    avoid_print: true # Avoid using print() in production, use logger instead
+    use_key_in_widget_constructors: true # Enforce adding Key in widgets
+    prefer_const_constructors: true # Use const where possible for better performance
+    prefer_const_literals_to_create_immutables: true # Use const lists/maps/sets to reduce widget rebuilds
+    prefer_final_fields: true # Enforce final for fields that don’t change
+    prefer_single_quotes: true # Consistency: enforce single quotes in Dart
+    avoid_unnecessary_containers: true # Prevent unnecessary wrapping in Containers
+    avoid_empty_else: true # Discourages empty else blocks
+    unnecessary_this: true # Avoid using 'this.' when not required
+    always_declare_return_types: true # Require return types for all functions
+    avoid_types_on_closure_parameters: true # Reduces verbosity in closures
+    avoid_redundant_argument_values: true # Prevent unnecessary default arguments
+    sort_child_properties_last: true # Improves code readability for UI widgets
+    unnecessary_breaks: true # Prevent unnecessary break statements in switch cases
+
+    # Code Readability & Formatting
+    sort_constructors_first: true # Ensures constructor comes first in classes
+    sort_unnamed_constructors_first: true # Unnamed constructors should come before named ones
+    curly_braces_in_flow_control_structures: true # Always use {} in if/else/loop statements
+    parameter_assignments: true # Avoid reassigning parameters within a function
+    require_trailing_commas: true # Enforce trailing commas for better diffs and readability
+
+    # Performance & Optimization
+    avoid_classes_with_only_static_members: true # Use top-level functions instead of classes with only static members
+    prefer_relative_imports: true # Use relative imports instead of package imports for local files
+    use_super_parameters: true # Modern way to pass parameters in constructors

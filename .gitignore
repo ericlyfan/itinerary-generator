@@ -1,0 +1,47 @@
+# Flutter/Dart Specific
+.dart_tool/
+.packages
+.pub-cache/
+build/
+flutter_*.iml
+
+# Generated files
+*.lock
+*.log
+*.so
+*.swp
+*.DS_Store
+*.tmp
+*.idea/
+*.iml
+.env
+
+# Flutter Assets & Temporary Files
+pubspec.lock
+pubspec_overrides.yaml
+
+# Android
+android/.gradle/
+android/app/build/
+android/build/
+
+# iOS/macOS
+ios/.symlinks/
+ios/Pods/
+ios/Runner.xcworkspace/
+ios/Flutter/Flutter.framework
+ios/Flutter/App.framework
+ios/build/
+ios/Podfile.lock
+
+# Xcode
+*.xcworkspace/
+*.xcuserdata/
+*.xcodeproj/
+
+# VS Code
+.vscode/
+
+# Logs & Debug Files
+debug.log
+*.log

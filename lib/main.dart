@@ -23,11 +23,7 @@ class TravelItineraryApp extends StatelessWidget {
         brightness: Brightness.light,
         primaryColor: offWhite,
         scaffoldBackgroundColor: offWhite,
-        appBarTheme: const AppBarTheme(
-          backgroundColor: offWhite,
-          foregroundColor: Colors.black,
-          elevation: 0,
-        ),
+        appBarTheme: const AppBarTheme(backgroundColor: offWhite, foregroundColor: Colors.black, elevation: 0),
         textTheme: TextTheme(
           displayLarge: GoogleFonts.nunito(fontSize: 32, fontWeight: FontWeight.w900),
           displayMedium: GoogleFonts.nunito(fontSize: 28, fontWeight: FontWeight.w800),
@@ -44,21 +40,17 @@ class TravelItineraryApp extends StatelessWidget {
             textStyle: const TextStyle(fontWeight: FontWeight.bold),
           ),
         ),
-        textButtonTheme: TextButtonThemeData(
-          style: TextButton.styleFrom(foregroundColor: Colors.black),
-        ),
+        textButtonTheme: TextButtonThemeData(style: TextButton.styleFrom(foregroundColor: Colors.black)),
         textSelectionTheme: const TextSelectionThemeData(
           cursorColor: Colors.black,
-          selectionColor: Colors.black26, // Or any other color you prefer
+          selectionColor: Colors.black26,
           selectionHandleColor: Colors.black,
         ),
         inputDecorationTheme: const InputDecorationTheme(
           labelStyle: TextStyle(color: Colors.black),
           border: OutlineInputBorder(),
           hintStyle: TextStyle(color: Colors.grey),
-          focusedBorder: OutlineInputBorder(
-            // Set focused border color to black
-          ),
+          focusedBorder: OutlineInputBorder(),
         ),
       ),
       home: const LandingScreen(),

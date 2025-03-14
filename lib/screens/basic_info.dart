@@ -21,6 +21,10 @@ class OptionData {
 class _BasicInfoStepperState extends State<BasicInfoStepper> {
   int _currentStep = 0;
   static const int totalSteps = 4;
+  final ScrollController _step1ScrollController = ScrollController();
+  final ScrollController _step2ScrollController = ScrollController();
+  final ScrollController _step3ScrollController = ScrollController();
+  final ScrollController _step4ScrollController = ScrollController();
 
   // For Step 1
   bool _isLocationExpanded = true;
@@ -72,15 +76,45 @@ class _BasicInfoStepperState extends State<BasicInfoStepper> {
   final List<String> selectedTripTypes = [];
   final List<String> selectedTravelStyles = [];
 
+  void _resetScrollPosition() {
+    // Schedule this for after the frame is built to ensure controllers are attached
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      switch (_currentStep) {
+        case 0:
+          if (_step1ScrollController.hasClients) {
+            _step1ScrollController.jumpTo(0);
+          }
+        case 1:
+          if (_step2ScrollController.hasClients) {
+            _step2ScrollController.jumpTo(0);
+          }
+        case 2:
+          if (_step3ScrollController.hasClients) {
+            _step3ScrollController.jumpTo(0);
+          }
+        case 3:
+          if (_step4ScrollController.hasClients) {
+            _step4ScrollController.jumpTo(0);
+          }
+      }
+    });
+  }
+
   @override
   void dispose() {
     _locationController.dispose();
+    _specialRequestsController.dispose();
+    _step1ScrollController.dispose();
+    _step2ScrollController.dispose();
+    _step3ScrollController.dispose();
+    _step4ScrollController.dispose();
     super.dispose();
   }
 
   // STEP 1: Where, When, Who
   Widget _buildFirstStep() {
     return SingleChildScrollView(
+      controller: _step1ScrollController,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -341,12 +375,17 @@ class _BasicInfoStepperState extends State<BasicInfoStepper> {
   /// STEP 2: Trip Type & Travel Style
   Widget _buildSecondStep() {
     return SingleChildScrollView(
+      controller: _step2ScrollController,
       padding: const EdgeInsets.only(left: 16.0, right: 16.0, bottom: 16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Trip Type Section
           Text('Trip Type', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900)),
+          Text(
+            'What kind of experience are you looking for?',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey[700]),
+          ),
           GridView.count(
             padding: const EdgeInsets.only(top: 12),
             crossAxisCount: 3,
@@ -373,9 +412,7 @@ class _BasicInfoStepperState extends State<BasicInfoStepper> {
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(color: isSelected ? Colors.black : Colors.grey[400]!, width: isSelected ? 2.0 : 1.0),
                         boxShadow:
-                            isSelected
-                                ? [BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 4, offset: const Offset(0, 2))]
-                                : null,
+                            isSelected ? [BoxShadow(color: Colors.black.withAlpha(38), blurRadius: 4, offset: const Offset(0, 2))] : null,
                       ),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -407,8 +444,10 @@ class _BasicInfoStepperState extends State<BasicInfoStepper> {
                 }).toList(),
           ),
           const SizedBox(height: 24),
+
           // Travel Style Section
           Text('Travel Style', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900)),
+          Text('How do you prefer to explore?', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey[700])),
           GridView.count(
             padding: const EdgeInsets.only(top: 12),
             crossAxisCount: 3,
@@ -435,9 +474,7 @@ class _BasicInfoStepperState extends State<BasicInfoStepper> {
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(color: isSelected ? Colors.black : Colors.grey[400]!, width: isSelected ? 2.0 : 1.0),
                         boxShadow:
-                            isSelected
-                                ? [BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 4, offset: const Offset(0, 2))]
-                                : null,
+                            isSelected ? [BoxShadow(color: Colors.black.withAlpha(38), blurRadius: 4, offset: const Offset(0, 2))] : null,
                       ),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -473,6 +510,288 @@ class _BasicInfoStepperState extends State<BasicInfoStepper> {
     );
   }
 
+  // STEP 3: Activities and Dining Preferences
+  final List<OptionData> activityOptions = [
+    const OptionData(name: 'City Sightseeing', description: 'Historical sites, landmarks, monuments', icon: Icons.location_city),
+    const OptionData(name: 'Museums & Arts', description: 'Galleries, exhibitions, theater', icon: Icons.museum),
+    const OptionData(name: 'Nature & Outdoors', description: 'Parks, hiking, wildlife viewing', icon: Icons.forest),
+    const OptionData(name: 'Adventure Activities', description: 'Thrilling experiences, water sports', icon: Icons.directions_bike_rounded),
+    const OptionData(name: 'Local Culture', description: 'Traditional experiences, local customs', icon: Icons.public_rounded),
+    const OptionData(name: 'Shopping & Markets', description: 'Boutiques, markets, souvenir hunting', icon: Icons.shopping_bag_rounded),
+    const OptionData(name: 'Beaches & Waterfront', description: 'Coastal activities, seaside relaxation', icon: Icons.waves_rounded),
+    const OptionData(name: 'Nightlife & Entertainment', description: 'Bars, clubs, evening activities', icon: Icons.nightlife),
+    const OptionData(name: 'Festivals & Events', description: 'Local celebrations, concerts', icon: Icons.festival),
+    const OptionData(name: 'Relaxation', description: 'Spas, leisurely activities', icon: Icons.spa),
+    const OptionData(name: 'Sports & Recreation', description: 'Sporting events, recreational activities', icon: Icons.sports_basketball),
+    const OptionData(name: 'Photography & Scenic Views', description: 'Viewpoints, photo opportunities', icon: Icons.photo_camera),
+  ];
+
+  final List<OptionData> diningOptions = [
+    const OptionData(name: 'Local Cuisine', description: 'Regional specialties, authentic dishes', icon: Icons.restaurant_menu_rounded),
+    const OptionData(name: 'Fine Dining', description: 'Upscale restaurants, gourmet experiences', icon: Icons.restaurant),
+    const OptionData(name: 'Casual Eateries', description: 'Relaxed atmosphere, everyday dining', icon: Icons.lunch_dining),
+    const OptionData(name: 'Street Food', description: 'Food stalls, markets, quick bites', icon: Icons.takeout_dining_rounded),
+    const OptionData(name: 'Unique Dining', description: 'Themed restaurants, unusual settings', icon: Icons.dinner_dining),
+    const OptionData(name: 'Vegetarian/Vegan', description: 'Plant-based options and specialties', icon: Icons.emoji_nature),
+    const OptionData(name: 'Family-Friendly', description: 'Kid-appropriate menus and settings', icon: Icons.child_friendly),
+    const OptionData(name: 'Hidden Gems', description: 'Local favorites off the tourist path', icon: Icons.star),
+    const OptionData(name: 'Food Tours & Classes', description: 'Cooking classes, guided tastings', icon: Icons.menu_book),
+  ];
+
+  final List<String> selectedActivities = [];
+  final List<String> selectedDiningOptions = [];
+
+  Widget _buildThirdStep() {
+    return SingleChildScrollView(
+      controller: _step3ScrollController,
+      padding: const EdgeInsets.only(left: 16.0, right: 16.0, bottom: 16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Activities Section
+          Text('Activities', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900)),
+          Text('What activities are you interested in?', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey[700])),
+          GridView.count(
+            padding: const EdgeInsets.only(top: 12),
+            crossAxisCount: 3,
+            mainAxisSpacing: 8,
+            crossAxisSpacing: 8,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            children:
+                activityOptions.map((option) {
+                  final bool isSelected = selectedActivities.contains(option.name);
+                  return InkWell(
+                    onTap: () {
+                      setState(() {
+                        if (isSelected) {
+                          selectedActivities.remove(option.name);
+                        } else {
+                          selectedActivities.add(option.name);
+                        }
+                      });
+                    },
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: isSelected ? const Color(0xFFF5F0E5) : Colors.white, // Beige background when selected
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: isSelected ? Colors.black : Colors.grey[400]!, width: isSelected ? 2.0 : 1.0),
+                        boxShadow:
+                            isSelected ? [BoxShadow(color: Colors.black.withAlpha(38), blurRadius: 4, offset: const Offset(0, 2))] : null,
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(option.icon, size: 24, color: isSelected ? Colors.black : Colors.grey[700]),
+                          const SizedBox(height: 4),
+                          Text(
+                            option.name,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: isSelected ? Colors.black : Colors.grey[800],
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 6.0),
+                            child: Text(
+                              option.description,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(fontSize: 10, color: isSelected ? Colors.black87 : Colors.grey[700]),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
+          ),
+          const SizedBox(height: 24),
+
+          // Dining Preferences Section
+          Text('Dining Preferences', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900)),
+          Text('What dining options do you prefer?', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey[700])),
+          GridView.count(
+            padding: const EdgeInsets.only(top: 12),
+            crossAxisCount: 3,
+            mainAxisSpacing: 8,
+            crossAxisSpacing: 8,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            children:
+                diningOptions.map((option) {
+                  final bool isSelected = selectedDiningOptions.contains(option.name);
+                  return InkWell(
+                    onTap: () {
+                      setState(() {
+                        if (isSelected) {
+                          selectedDiningOptions.remove(option.name);
+                        } else {
+                          selectedDiningOptions.add(option.name);
+                        }
+                      });
+                    },
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: isSelected ? const Color(0xFFF5F0E5) : Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: isSelected ? Colors.black : Colors.grey[400]!, width: isSelected ? 2.0 : 1.0),
+                        boxShadow:
+                            isSelected ? [BoxShadow(color: Colors.black.withAlpha(38), blurRadius: 4, offset: const Offset(0, 2))] : null,
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(option.icon, size: 24, color: isSelected ? Colors.black : Colors.grey[700]),
+                          const SizedBox(height: 4),
+                          Text(
+                            option.name,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: isSelected ? Colors.black : Colors.grey[800],
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 6.0),
+                            child: Text(
+                              option.description,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(fontSize: 10, color: isSelected ? Colors.black87 : Colors.grey[700]),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Step 4: Special Accommodations & Requests
+  final List<OptionData> accommodationOptions = [
+    const OptionData(name: 'Accessibility', description: 'Wheelchair access, adapted facilities', icon: Icons.accessible),
+    const OptionData(name: 'Pet-Friendly', description: 'Accommodations that welcome pets', icon: Icons.pets),
+    const OptionData(name: 'Allergy-Safe', description: 'Reduced allergens, special cleaning', icon: Icons.cleaning_services),
+    const OptionData(name: 'Child-Friendly', description: 'Family rooms, childcare services', icon: Icons.child_care),
+    const OptionData(name: 'Quiet Location', description: 'Away from noise and crowds', icon: Icons.noise_aware),
+    const OptionData(name: 'Wi-Fi', description: 'Reliable internet connection', icon: Icons.wifi),
+    const OptionData(name: 'Private Bathroom', description: 'Ensuite facilities only', icon: Icons.bathroom),
+    const OptionData(name: 'Air Conditioning', description: 'Climate-controlled spaces', icon: Icons.ac_unit),
+    const OptionData(name: 'Pool Access', description: 'Swimming pools available', icon: Icons.pool),
+  ];
+
+  final List<String> selectedAccommodations = [];
+  final TextEditingController _specialRequestsController = TextEditingController();
+
+  Widget _buildFourthStep() {
+    return SingleChildScrollView(
+      controller: _step4ScrollController,
+      padding: const EdgeInsets.only(left: 16.0, right: 16.0, bottom: 16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Special Accommodations Section
+          Text('Special Accommodations', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900)),
+          Text(
+            'Do you have any specific accommodation needs?',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey[700]),
+          ),
+          GridView.count(
+            padding: const EdgeInsets.only(top: 12),
+            crossAxisCount: 3,
+            mainAxisSpacing: 8,
+            crossAxisSpacing: 8,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            children:
+                accommodationOptions.map((option) {
+                  final bool isSelected = selectedAccommodations.contains(option.name);
+                  return InkWell(
+                    onTap: () {
+                      setState(() {
+                        if (isSelected) {
+                          selectedAccommodations.remove(option.name);
+                        } else {
+                          selectedAccommodations.add(option.name);
+                        }
+                      });
+                    },
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: isSelected ? const Color(0xFFF5F0E5) : Colors.white, // Beige background when selected
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: isSelected ? Colors.black : Colors.grey[400]!, width: isSelected ? 2.0 : 1.0),
+                        boxShadow:
+                            isSelected ? [BoxShadow(color: Colors.black.withAlpha(38), blurRadius: 4, offset: const Offset(0, 2))] : null,
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(option.icon, size: 24, color: isSelected ? Colors.black : Colors.grey[700]),
+                          const SizedBox(height: 4),
+                          Text(
+                            option.name,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: isSelected ? Colors.black : Colors.grey[800],
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 6.0),
+                            child: Text(
+                              option.description,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(fontSize: 10, color: isSelected ? Colors.black87 : Colors.grey[700]),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
+          ),
+          const SizedBox(height: 24),
+
+          // Special Requests Section
+          Text('Special Requests', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900)),
+          Text(
+            'Any additional information or requests you would like to share?',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey[700]),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.grey[400]!),
+            ),
+            child: TextField(
+              controller: _specialRequestsController,
+              maxLines: 6,
+              decoration: const InputDecoration(
+                hintText: 'E.g., specific dietary needs, travel concerns, birthday celebration, anniversary trip, etc.',
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.all(16),
+              ),
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   /// Content for each step
   Widget _buildStepContent() {
     switch (_currentStep) {
@@ -483,11 +802,11 @@ class _BasicInfoStepperState extends State<BasicInfoStepper> {
         // Step 2: Trip type, travel style
         return _buildSecondStep();
       case 2:
-      // Step 3: Budget, Activities, Dining
-      // TODO: return _buildThirdStep();
+        // Step 3: Budget, Activities, Dining
+        return _buildThirdStep();
       case 3:
-      // Step 4: Special accommodations, requests
-      // TODO: return _buildFourthStep();
+        // Step 4: Special accommodations, requests
+        return _buildFourthStep();
       default:
         return const SizedBox.shrink();
     }
@@ -548,6 +867,7 @@ class _BasicInfoStepperState extends State<BasicInfoStepper> {
                             if (!isLastStep) {
                               setState(() {
                                 _currentStep++;
+                                _resetScrollPosition();
                               });
                             } else {
                               // TODO: Submit the data or navigate away.

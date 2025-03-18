@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:syncfusion_flutter_datepicker/datepicker.dart';
-import '../services/api_services.dart';
+import '../services/places_service.dart';
+import 'recommendation_screen.dart';
+import '../services/gemini_service.dart';
 
 class BasicInfoStepper extends StatefulWidget {
   const BasicInfoStepper({super.key});
@@ -57,11 +59,11 @@ class _BasicInfoStepperState extends State<BasicInfoStepper> {
     const OptionData(name: 'Romantic', description: 'Intimate experiences and moments for couples.', icon: Icons.favorite),
     const OptionData(name: 'Trending', description: 'Popular and highly-rated destinations.', icon: Icons.local_fire_department),
     const OptionData(name: 'Adventure', description: 'Thrilling nature excursions and adventures.', icon: Icons.forest),
+    const OptionData(name: 'Wellness', description: 'Mindfulness, relaxation and spa treatments.', icon: Icons.self_improvement),
     const OptionData(name: 'Family', description: 'Fun activities for adults and children.', icon: Icons.family_restroom),
     const OptionData(name: 'Cultural', description: 'Local traditions and historical sites.', icon: Icons.museum),
-    const OptionData(name: 'Wellness', description: 'Mindfulness, relaxation and spa treatments.', icon: Icons.self_improvement),
     const OptionData(name: 'Scenic', description: 'Beautiful landscapes and photo spots.', icon: Icons.landscape),
-    const OptionData(name: 'Business', description: 'Professional meetings and networking.', icon: Icons.business_center),
+    const OptionData(name: 'Business', description: 'Sightseeing between meetings and networking events', icon: Icons.business_center),
   ];
 
   final List<OptionData> travelStyleOptions = [
@@ -529,11 +531,11 @@ class _BasicInfoStepperState extends State<BasicInfoStepper> {
   final List<OptionData> diningOptions = [
     const OptionData(name: 'Local Cuisine', description: 'Regional specialties, authentic dishes', icon: Icons.restaurant_menu_rounded),
     const OptionData(name: 'Fine Dining', description: 'Upscale restaurants, gourmet experiences', icon: Icons.restaurant),
-    const OptionData(name: 'Casual Eateries', description: 'Relaxed atmosphere, everyday dining', icon: Icons.lunch_dining),
+    const OptionData(name: 'Casual Eateries', description: 'Relaxed atmosphere, everyday dining', icon: Icons.tapas_rounded),
     const OptionData(name: 'Street Food', description: 'Food stalls, markets, quick bites', icon: Icons.takeout_dining_rounded),
     const OptionData(name: 'Unique Dining', description: 'Themed restaurants, unusual settings', icon: Icons.dinner_dining),
     const OptionData(name: 'Vegetarian/Vegan', description: 'Plant-based options and specialties', icon: Icons.emoji_nature),
-    const OptionData(name: 'Family-Friendly', description: 'Kid-appropriate menus and settings', icon: Icons.child_friendly),
+    const OptionData(name: 'Cafe & Bakeries', description: 'Cozy coffee shops and artisanal bakeries', icon: Icons.local_cafe_rounded),
     const OptionData(name: 'Hidden Gems', description: 'Local favorites off the tourist path', icon: Icons.star),
     const OptionData(name: 'Food Tours & Classes', description: 'Cooking classes, guided tastings', icon: Icons.menu_book),
   ];
@@ -676,16 +678,13 @@ class _BasicInfoStepperState extends State<BasicInfoStepper> {
   }
 
   // Step 4: Special Accommodations & Requests
-  final List<OptionData> accommodationOptions = [
-    const OptionData(name: 'Accessibility', description: 'Wheelchair access, adapted facilities', icon: Icons.accessible),
-    const OptionData(name: 'Pet-Friendly', description: 'Accommodations that welcome pets', icon: Icons.pets),
-    const OptionData(name: 'Allergy-Safe', description: 'Reduced allergens, special cleaning', icon: Icons.cleaning_services),
-    const OptionData(name: 'Child-Friendly', description: 'Family rooms, childcare services', icon: Icons.child_care),
-    const OptionData(name: 'Quiet Location', description: 'Away from noise and crowds', icon: Icons.noise_aware),
-    const OptionData(name: 'Wi-Fi', description: 'Reliable internet connection', icon: Icons.wifi),
-    const OptionData(name: 'Private Bathroom', description: 'Ensuite facilities only', icon: Icons.bathroom),
-    const OptionData(name: 'Air Conditioning', description: 'Climate-controlled spaces', icon: Icons.ac_unit),
-    const OptionData(name: 'Pool Access', description: 'Swimming pools available', icon: Icons.pool),
+  final List<OptionData> specialConsiderations = [
+    const OptionData(name: 'Accessibility', description: 'Wheelchair-friendly routes and venues', icon: Icons.accessible),
+    const OptionData(name: 'Child-Friendly', description: 'Activities suitable for young travelers', icon: Icons.child_care),
+    const OptionData(name: 'Dietary Restrictions', description: 'Special food needs and allergies', icon: Icons.restaurant_menu),
+    const OptionData(name: 'Mobility Limits', description: 'Limited walking or low-intensity activities', icon: Icons.directions_walk),
+    const OptionData(name: 'Sensory Sensitivity', description: 'Quieter venues with less stimulation', icon: Icons.volume_mute),
+    const OptionData(name: 'Communication Needs', description: 'Support for hearing, speech, or language differences', icon: Icons.hearing),
   ];
 
   final List<String> selectedAccommodations = [];
@@ -699,7 +698,7 @@ class _BasicInfoStepperState extends State<BasicInfoStepper> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Special Accommodations Section
-          Text('Special Accommodations', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900)),
+          Text('Special Considerations', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900)),
           Text(
             'Do you have any specific accommodation needs?',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey[700]),
@@ -712,7 +711,7 @@ class _BasicInfoStepperState extends State<BasicInfoStepper> {
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             children:
-                accommodationOptions.map((option) {
+                specialConsiderations.map((option) {
                   final bool isSelected = selectedAccommodations.contains(option.name);
                   return InkWell(
                     onTap: () {
@@ -778,7 +777,8 @@ class _BasicInfoStepperState extends State<BasicInfoStepper> {
             ),
             child: TextField(
               controller: _specialRequestsController,
-              maxLines: 6,
+              maxLines: 8,
+              minLines: 8,
               decoration: const InputDecoration(
                 hintText: 'E.g., specific dietary needs, travel concerns, birthday celebration, anniversary trip, etc.',
                 border: InputBorder.none,
@@ -821,6 +821,26 @@ class _BasicInfoStepperState extends State<BasicInfoStepper> {
         return Expanded(child: Container(margin: const EdgeInsets.symmetric(horizontal: 4), height: 3, color: color));
       }),
     );
+  }
+
+  void _submitAndNavigate() {
+    final TripPreferences preferences = TripPreferences(
+      destination: _locationController.text,
+      startDate: _startDate,
+      endDate: _endDate,
+      adults: _adults,
+      children: _children,
+      infants: _infants,
+      pets: _pets,
+      tripTypes: selectedTripTypes,
+      travelStyles: selectedTravelStyles,
+      activities: selectedActivities,
+      diningPreferences: selectedDiningOptions,
+      considerations: selectedAccommodations,
+      specialRequests: _specialRequestsController.text,
+    );
+
+    Navigator.push(context, MaterialPageRoute(builder: (context) => RecommendationScreen(tripPreferences: preferences)));
   }
 
   @override
@@ -870,7 +890,7 @@ class _BasicInfoStepperState extends State<BasicInfoStepper> {
                                 _resetScrollPosition();
                               });
                             } else {
-                              // TODO: Submit the data or navigate away.
+                              _submitAndNavigate();
                             }
                           },
                   child: Text(isLastStep ? 'Finish' : 'Next'),

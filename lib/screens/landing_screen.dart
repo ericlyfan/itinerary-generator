@@ -45,11 +45,7 @@ class _LandingScreenState extends State<LandingScreen> {
           });
         } else {
           _currentPage++;
-          _pageController.animateToPage(
-            _currentPage,
-            duration: const Duration(milliseconds: 500),
-            curve: Curves.easeInOut,
-          );
+          _pageController.animateToPage(_currentPage, duration: const Duration(milliseconds: 500), curve: Curves.easeInOut);
         }
       }
     });
@@ -92,20 +88,13 @@ class _LandingScreenState extends State<LandingScreen> {
               height: containerHeight,
               decoration: const BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(30),
-                  topRight: Radius.circular(30),
-                ),
+                borderRadius: BorderRadius.only(topLeft: Radius.circular(30), topRight: Radius.circular(30)),
               ),
               padding: const EdgeInsets.all(32.0),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(
-                    'Intellinary',
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.displayLarge,
-                  ),
+                  Text('Intellinary', textAlign: TextAlign.center, style: Theme.of(context).textTheme.displayLarge),
                   const SizedBox(height: 24),
                   Text(
                     'Your next trip, intelligently crafted',
@@ -121,18 +110,13 @@ class _LandingScreenState extends State<LandingScreen> {
                   const SizedBox(height: 24),
                   ElevatedButton.icon(
                     onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const BasicInfoStepper()),
-                      );
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => const BasicInfoStepper()));
                     },
                     icon: const Icon(Icons.route, size: 32.0, color: Colors.black),
                     label: const Text('Create a New Itinerary'),
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 24),
-                      textStyle: Theme.of(
-                        context,
-                      ).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.bold),
+                      textStyle: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.bold),
                     ),
                   ),
                   TextButton(
@@ -140,9 +124,7 @@ class _LandingScreenState extends State<LandingScreen> {
                       // TODO: Navigate to sign-in screen
                     },
                     style: OutlinedButton.styleFrom(
-                      textStyle: Theme.of(
-                        context,
-                      ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
+                      textStyle: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
                     ),
                     child: const Text('Sign In'),
                   ),

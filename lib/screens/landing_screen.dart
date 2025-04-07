@@ -1,6 +1,12 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'basic_info.dart';
+import 'auth/signin_screen.dart';
+import '../services/supabase_service.dart';
+import 'auth/profile_screen.dart';
+
+final supabaseService = SupabaseService();
 
 class LandingScreen extends StatefulWidget {
   const LandingScreen({super.key});
@@ -26,6 +32,8 @@ class _LandingScreenState extends State<LandingScreen> {
   late final PageController _pageController;
   Timer? _timer;
   int _currentPage = 0;
+  bool _isUserLoggedIn = false;
+  StreamSubscription<AuthState>? _authSubscription;
 
   final double containerHeight = 355.0;
   final double overlap = 28.0;
@@ -34,6 +42,20 @@ class _LandingScreenState extends State<LandingScreen> {
   void initState() {
     super.initState();
     _pageController = PageController(initialPage: _currentPage);
+
+    // Initialize authentication state
+    _isUserLoggedIn = supabaseService.isAuthenticated;
+
+    // Set up auth state listener
+    _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+      final AuthChangeEvent event = data.event;
+
+      if (mounted) {
+        setState(() {
+          _isUserLoggedIn = event == AuthChangeEvent.signedIn;
+        });
+      }
+    });
 
     // Auto-scroll - if at last page, jump to page 0 else animate to next page
     _timer = Timer.periodic(const Duration(seconds: 8), (timer) {
@@ -55,7 +77,30 @@ class _LandingScreenState extends State<LandingScreen> {
   void dispose() {
     _timer?.cancel();
     _pageController.dispose();
+    _authSubscription?.cancel();
     super.dispose();
+  }
+
+  void _navigateToSignIn() {
+    Navigator.push(context, MaterialPageRoute(builder: (context) => const SignInScreen())).then((_) {
+      // When returning from sign in screen, update state if needed
+      if (mounted) {
+        setState(() {
+          _isUserLoggedIn = supabaseService.isAuthenticated;
+        });
+      }
+    });
+  }
+
+  void _navigateToProfile() {
+    Navigator.push(context, MaterialPageRoute(builder: (context) => const ProfileScreen())).then((_) {
+      // When returning from profile screen, update state if needed
+      if (mounted) {
+        setState(() {
+          _isUserLoggedIn = supabaseService.isAuthenticated;
+        });
+      }
+    });
   }
 
   @override
@@ -120,13 +165,11 @@ class _LandingScreenState extends State<LandingScreen> {
                     ),
                   ),
                   TextButton(
-                    onPressed: () {
-                      // TODO: Navigate to sign-in screen
-                    },
+                    onPressed: _isUserLoggedIn ? _navigateToProfile : _navigateToSignIn,
                     style: OutlinedButton.styleFrom(
                       textStyle: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
                     ),
-                    child: const Text('Sign In'),
+                    child: Text(_isUserLoggedIn ? 'My Profile' : 'Sign In'),
                   ),
                 ],
               ),

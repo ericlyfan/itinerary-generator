@@ -4,6 +4,8 @@
 .pub-cache/
 build/
 flutter_*.iml
+.flutter-plugins
+.flutter-plugins-dependencies
 
 # Generated files
 *.lock
@@ -20,11 +22,6 @@ flutter_*.iml
 pubspec.lock
 pubspec_overrides.yaml
 
-# Android
-android/.gradle/
-android/app/build/
-android/build/
-
 # iOS/macOS
 ios/.symlinks/
 ios/Pods/
@@ -33,6 +30,8 @@ ios/Flutter/Flutter.framework
 ios/Flutter/App.framework
 ios/build/
 ios/Podfile.lock
+ios/.generated/
+ios/Flutter/Generated.xcconfig
 
 # Xcode
 *.xcworkspace/

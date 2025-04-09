@@ -36,13 +36,11 @@ flutter:
 
 flutter_native_splash:
   color: "#F5F5F5"
-  android: true
   ios: true
-  image: assets/images/splash.png
+  image: assets/images/intellinary_splash.png
   android_gravity: center
   ios_content_mode: center
 
 flutter_launcher_icons:
-  android: true
   ios: true
   image_path: "assets/images/intellinary_icon.png"

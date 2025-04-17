@@ -43,9 +43,6 @@ class _LandingScreenState extends State<LandingScreen> {
     super.initState();
     _pageController = PageController(initialPage: _currentPage);
 
-    // Initialize authentication state
-    _isUserLoggedIn = supabaseService.isAuthenticated;
-
     // Set up auth state listener
     _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((data) {
       final AuthChangeEvent event = data.event;

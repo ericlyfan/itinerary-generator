@@ -52,11 +52,16 @@ class _SignUpScreenState extends State<SignUpScreen> {
       );
 
       if (response.user != null) {
+        // Update profile name using Supabase Function
+        await Supabase.instance.client.rpc(
+          'update_profile_name',
+          params: {'user_id': response.user!.id, 'new_full_name': _nameController.text.trim()},
+        );
+
+        if (!mounted) return;
+
         // For email confirmation flows, show a message
         if (response.session == null) {
-          if (!mounted) return;
-
-          // Show confirmation dialog
           showDialog(
             context: context,
             builder:
@@ -68,8 +73,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   actions: [
                     TextButton(
                       onPressed: () {
-                        Navigator.pop(context); // Close dialog
-                        Navigator.pop(context); // Go back to sign in
+                        Navigator.pop(context);
+                        Navigator.pop(context);
                       },
                       child: const Text('OK'),
                     ),
@@ -77,13 +82,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 ),
           );
         } else {
-          // User is signed in immediately
-          if (!mounted) return;
-
+          // User signed in immediately
           if (widget.onAuthSuccess != null) {
             widget.onAuthSuccess!();
           } else {
-            Navigator.pop(context, true); // Return success
+            Navigator.pop(context, true);
           }
         }
       } else {
@@ -127,7 +130,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
               ),
               const SizedBox(height: 32),
 
-              // Error message
               if (_errorMessage.isNotEmpty)
                 Container(
                   padding: const EdgeInsets.all(12),

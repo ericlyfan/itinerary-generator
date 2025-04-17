@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
-import '../../services/supabase_service.dart';
-import 'signup_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+import 'signup_screen.dart';
+import 'forgot_password_screen.dart';
+import '../../services/supabase_service.dart';
 
 // Create an instance of SupabaseService
 final supabaseService = SupabaseService();
@@ -153,7 +155,7 @@ class _SignInScreenState extends State<SignInScreen> {
                 alignment: Alignment.centerRight,
                 child: TextButton(
                   onPressed: () {
-                    // TODO: Implement forgot password flow
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => const ForgotPasswordScreen()));
                   },
                   child: Text('Forgot Password?', style: TextStyle(color: Colors.grey[800])),
                 ),

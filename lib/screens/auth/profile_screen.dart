@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/supabase_service.dart';
+import '../landing_screen.dart';
 
 // Create an instance of SupabaseService
 final supabaseService = SupabaseService();
@@ -26,37 +27,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _loadUserProfile() async {
     final user = supabaseService.currentUser;
-    if (user != null) {
-      setState(() {
-        _userEmail = user.email;
+    if (user == null) return;
 
-        // Load name from user metadata if available
-        if (user.userMetadata != null && user.userMetadata!.containsKey('name')) {
-          _nameController.text = user.userMetadata!['name'] as String;
-        }
+    setState(() {
+      _userEmail = user.email;
+    });
 
-        // Load avatar if available
-        if (user.userMetadata != null && user.userMetadata!.containsKey('avatar_url')) {
-          _avatarUrl = user.userMetadata!['avatar_url'] as String;
-        }
-      });
-
-      // Try to fetch additional profile data from profiles table
-      try {
-        final data = await supabaseService.client.from('profiles').select().eq('id', user.id).single();
-
-        setState(() {
-          if (data['name'] != null && _nameController.text.isEmpty) {
-            _nameController.text = data['name'] as String;
-          }
-          if (data['avatar_url'] != null && _avatarUrl == null) {
-            _avatarUrl = data['avatar_url'] as String;
-          }
-        });
-      } catch (e) {
-        // Profile might not exist yet, that's okay
+    String? nameFromDb;
+    try {
+      final data = await supabaseService.client.from('profiles').select().eq('id', user.id).single();
+      nameFromDb = data['full_name'] as String?;
+      if (data['avatar_url'] != null) {
+        _avatarUrl = data['avatar_url'] as String;
       }
+    } catch (_) {}
+
+    final nameFromMeta = user.userMetadata?['name'] as String?;
+    final avatarFromMeta = user.userMetadata?['avatar_url'] as String?;
+    final displayName = nameFromDb ?? nameFromMeta;
+    if (displayName != null && displayName.isNotEmpty) {
+      _nameController.text = displayName;
     }
+    if (_avatarUrl == null && avatarFromMeta != null) {
+      _avatarUrl = avatarFromMeta;
+    }
+
+    if (mounted) setState(() {});
   }
 
   Future<void> _updateProfile() async {
@@ -72,15 +68,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
         await supabaseService.updateProfile(userId: user.id, name: _nameController.text.trim());
 
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile updated successfully')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.check_circle, color: Colors.black),
+                SizedBox(width: 8),
+                Text('Profile updated successfully', style: TextStyle(color: Colors.black)),
+              ],
+            ),
+            backgroundColor: Theme.of(context).primaryColor,
+          ),
+        );
       }
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error updating profile: ${e.toString()}')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Center(child: Text('Error updating profile: ${e.toString()}', style: const TextStyle(color: Colors.black))),
+            backgroundColor: Theme.of(context).primaryColor,
+          ),
+        );
+      }
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -107,10 +123,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       await supabaseService.signOut();
       if (!mounted) return;
-      Navigator.pop(context); // Go back to previous screen
+      Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => const LandingScreen()), (route) => false);
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error signing out: ${e.toString()}')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Center(child: Text('Error signing out: ${e.toString()}', style: const TextStyle(color: Colors.black))),
+            backgroundColor: Theme.of(context).primaryColor,
+          ),
+        );
+      }
     }
   }
 
@@ -130,7 +152,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           key: _formKey,
           child: Column(
             children: [
-              // Avatar
               CircleAvatar(
                 radius: 50,
                 backgroundColor: const Color(0xFFE6D5C7),
@@ -143,21 +164,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         )
                         : null,
               ),
-              TextButton(
-                onPressed: () {
-                  // TODO: Implement avatar upload
-                },
-                child: const Text('Change Profile Picture'),
-              ),
               const SizedBox(height: 16),
-
-              // Email display (non-editable)
               if (_userEmail != null) ...[
                 Text(_userEmail!, style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.grey[700])),
                 const SizedBox(height: 24),
               ],
-
-              // Name field
               TextFormField(
                 controller: _nameController,
                 decoration: const InputDecoration(labelText: 'Full Name', prefixIcon: Icon(Icons.person_outline)),
@@ -169,8 +180,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 },
               ),
               const SizedBox(height: 32),
-
-              // Update profile button
               ElevatedButton(
                 onPressed: _isLoading ? null : _updateProfile,
                 style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 50)),
@@ -184,8 +193,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         : const Text('Update Profile'),
               ),
               const SizedBox(height: 16),
-
-              // Sign out button
               OutlinedButton(
                 onPressed: _signOut,
                 style: OutlinedButton.styleFrom(

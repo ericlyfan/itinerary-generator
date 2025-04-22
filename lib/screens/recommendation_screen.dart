@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:carousel_slider/carousel_slider.dart';
 import '../services/gemini_service.dart';
+import '../services/supabase_service.dart';
 
 class RecommendationScreen extends StatefulWidget {
-  const RecommendationScreen({super.key, required this.tripPreferences});
+  const RecommendationScreen({super.key, required this.tripPreferences, required this.itineraryId});
   final TripPreferences tripPreferences;
+  final String itineraryId;
 
   @override
   State<RecommendationScreen> createState() => _RecommendationScreenState();
@@ -13,6 +16,7 @@ enum SortOption { recommended, highestRated, priceHighToLow, priceLowToHigh, nam
 
 class _RecommendationScreenState extends State<RecommendationScreen> {
   final GeminiService _geminiService = GeminiService();
+  final SupabaseService _supabaseService = SupabaseService();
   late Future<Map<String, dynamic>> _recommendationsFuture;
 
   final Set<String> _selectedAttractions = {};
@@ -174,17 +178,7 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
                       tabs: [Tab(text: 'Attractions', icon: Icon(Icons.place)), Tab(text: 'Restaurants', icon: Icon(Icons.restaurant))],
                     ),
                   ),
-                  Expanded(
-                    child: TabBarView(
-                      children: [
-                        // Attractions Tab
-                        _buildAttractionsTab(),
-
-                        // Restaurants Tab
-                        _buildRestaurantsTab(),
-                      ],
-                    ),
-                  ),
+                  Expanded(child: TabBarView(children: [_buildAttractionsTab(), _buildRestaurantsTab()])),
                 ],
               ),
             );
@@ -293,7 +287,7 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
                       : [BoxShadow(color: Colors.black.withAlpha(15), blurRadius: 4, offset: const Offset(0, 1))],
             ),
             child: GestureDetector(
-              onTap: () {
+              onTap: () async {
                 setState(() {
                   if (isSelected) {
                     _selectedAttractions.remove(attraction.name);
@@ -301,83 +295,144 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
                     _selectedAttractions.add(attraction.name);
                   }
                 });
+                await _supabaseService.updateItinerarySelections(
+                  itineraryId: widget.itineraryId,
+                  selectedAttractions: _allAttractions.where((a) => _selectedAttractions.contains(a.name)).map((a) => a.toJson()).toList(),
+                  selectedRestaurants: _allRestaurants.where((r) => _selectedRestaurants.contains(r.name)).map((r) => r.toJson()).toList(),
+                );
               },
-              child: Padding(
-                padding: const EdgeInsets.only(top: 12, left: 16, right: 16, bottom: 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            attraction.name,
-                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.w900,
-                              fontSize: 20,
-                              color: isSelected ? Colors.black : Colors.black87,
-                            ),
-                          ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Image carousel
+                  if (attraction.imageUrls.isNotEmpty)
+                    ClipRRect(
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
+                      child: CarouselSlider(
+                        options: CarouselOptions(
+                          height: 250.0,
+                          viewportFraction: 1.0,
+                          enableInfiniteScroll: attraction.imageUrls.length > 1,
+                          padEnds: false,
                         ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(color: const Color(0xFFE6D5C7), borderRadius: BorderRadius.circular(12)),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.star, size: 16, color: Colors.black87),
-                              const SizedBox(width: 4),
-                              Text(attraction.rating.toString(), style: const TextStyle(fontWeight: FontWeight.bold)),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
+                        items:
+                            attraction.imageUrls.map((url) {
+                              return Builder(
+                                builder: (context) {
+                                  return Image.network(
+                                    url,
+                                    width: double.infinity,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return Container(
+                                        height: 250,
+                                        color: Colors.grey[300],
+                                        child: Center(child: Icon(Icons.place, size: 48, color: Colors.grey[600])),
+                                      );
+                                    },
+                                    loadingBuilder: (context, child, loadingProgress) {
+                                      if (loadingProgress == null) return child;
+                                      return Container(
+                                        height: 250,
+                                        color: Colors.grey[200],
+                                        child: const Center(
+                                          child: CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFE6D5C7))),
+                                        ),
+                                      );
+                                    },
+                                  );
+                                },
+                              );
+                            }).toList(),
+                      ),
+                    )
+                  else
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[200],
-                        borderRadius: BorderRadius.circular(16),
-                        border: isSelected ? Border.all() : null,
-                      ),
-                      child: Text(
-                        attraction.category,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: isSelected ? Colors.black : Colors.grey[800],
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                        ),
-                      ),
+                      height: 250,
+                      color: Colors.grey[300],
+                      child: Center(child: Icon(Icons.place, size: 48, color: Colors.grey[600])),
                     ),
-                    const SizedBox(height: 8),
-                    Text(attraction.description, style: TextStyle(fontSize: 14, color: isSelected ? Colors.black87 : Colors.grey[700])),
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+
+                  // Existing content with padding
+                  Padding(
+                    padding: const EdgeInsets.only(top: 12, left: 16, right: 16, bottom: 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // Existing information layout...
                         Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Icon(Icons.access_time, size: 14, color: isSelected ? Colors.black54 : Colors.grey),
-                            const SizedBox(width: 4),
-                            Text(
-                              attraction.timeNeeded,
-                              style: TextStyle(
-                                color: isSelected ? Colors.black54 : Colors.grey,
-                                fontWeight: isSelected ? FontWeight.w500 : FontWeight.normal,
-                                fontSize: 14,
+                            Expanded(
+                              child: Text(
+                                attraction.name,
+                                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 20,
+                                  color: isSelected ? Colors.black : Colors.black87,
+                                ),
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(color: const Color(0xFFE6D5C7), borderRadius: BorderRadius.circular(12)),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.star, size: 16, color: Colors.black87),
+                                  const SizedBox(width: 4),
+                                  Text(attraction.rating.toString(), style: const TextStyle(fontWeight: FontWeight.bold)),
+                                ],
                               ),
                             ),
                           ],
                         ),
-                        Text(
-                          attraction.priceRange,
-                          style: TextStyle(fontWeight: FontWeight.bold, color: isSelected ? Colors.black : Colors.grey[800]),
+                        const SizedBox(height: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[200],
+                            borderRadius: BorderRadius.circular(16),
+                            border: isSelected ? Border.all() : null,
+                          ),
+                          child: Text(
+                            attraction.category,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: isSelected ? Colors.black : Colors.grey[800],
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(attraction.description, style: TextStyle(fontSize: 14, color: isSelected ? Colors.black87 : Colors.grey[700])),
+                        const SizedBox(height: 8),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(Icons.access_time, size: 14, color: isSelected ? Colors.black54 : Colors.grey),
+                                const SizedBox(width: 4),
+                                Text(
+                                  attraction.timeNeeded,
+                                  style: TextStyle(
+                                    color: isSelected ? Colors.black54 : Colors.grey,
+                                    fontWeight: isSelected ? FontWeight.w500 : FontWeight.normal,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Text(
+                              attraction.priceRange,
+                              style: TextStyle(fontWeight: FontWeight.bold, color: isSelected ? Colors.black : Colors.grey[800]),
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           );
@@ -484,7 +539,7 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
                       : [BoxShadow(color: Colors.black.withAlpha(15), blurRadius: 4, offset: const Offset(0, 1))],
             ),
             child: GestureDetector(
-              onTap: () {
+              onTap: () async {
                 setState(() {
                   if (isSelected) {
                     _selectedRestaurants.remove(restaurant.name);
@@ -492,90 +547,151 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
                     _selectedRestaurants.add(restaurant.name);
                   }
                 });
+                await _supabaseService.updateItinerarySelections(
+                  itineraryId: widget.itineraryId,
+                  selectedAttractions: _allAttractions.where((a) => _selectedAttractions.contains(a.name)).map((a) => a.toJson()).toList(),
+                  selectedRestaurants: _allRestaurants.where((r) => _selectedRestaurants.contains(r.name)).map((r) => r.toJson()).toList(),
+                );
               },
-              child: Padding(
-                padding: const EdgeInsets.only(top: 12, left: 16, right: 16, bottom: 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            restaurant.name,
-                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.w900,
-                              fontSize: 20,
-                              color: isSelected ? Colors.black : Colors.black87,
-                            ),
-                          ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Image carousel
+                  if (restaurant.imageUrls.isNotEmpty)
+                    ClipRRect(
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
+                      child: CarouselSlider(
+                        options: CarouselOptions(
+                          height: 250.0,
+                          viewportFraction: 1.0,
+                          enableInfiniteScroll: restaurant.imageUrls.length > 1,
+                          padEnds: false,
                         ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(color: const Color(0xFFE6D5C7), borderRadius: BorderRadius.circular(12)),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.star, size: 16, color: Colors.black87),
-                              const SizedBox(width: 4),
-                              Text(restaurant.rating.toString(), style: const TextStyle(fontWeight: FontWeight.bold)),
-                            ],
-                          ),
-                        ),
-                      ],
+                        items:
+                            restaurant.imageUrls.map((url) {
+                              return Builder(
+                                builder: (context) {
+                                  return Image.network(
+                                    url,
+                                    width: double.infinity,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return Container(
+                                        height: 250,
+                                        color: Colors.grey[300],
+                                        child: Center(child: Icon(Icons.restaurant, size: 48, color: Colors.grey[600])),
+                                      );
+                                    },
+                                    loadingBuilder: (context, child, loadingProgress) {
+                                      if (loadingProgress == null) return child;
+                                      return Container(
+                                        height: 250,
+                                        color: Colors.grey[200],
+                                        child: const Center(
+                                          child: CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFE6D5C7))),
+                                        ),
+                                      );
+                                    },
+                                  );
+                                },
+                              );
+                            }).toList(),
+                      ),
+                    )
+                  else
+                    Container(
+                      height: 250,
+                      color: Colors.grey[300],
+                      child: Center(child: Icon(Icons.restaurant, size: 48, color: Colors.grey[600])),
                     ),
-                    const SizedBox(height: 6),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+
+                  // Existing content with padding
+                  Padding(
+                    padding: const EdgeInsets.only(top: 12, left: 16, right: 16, bottom: 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // Existing information layout...
                         Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Container(
-                              margin: const EdgeInsets.only(right: 8),
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: isSelected ? const Color(0xFFF5F0E5) : Colors.grey[200],
-                                borderRadius: BorderRadius.circular(16),
-                                border: isSelected ? Border.all() : null,
-                              ),
+                            Expanded(
                               child: Text(
-                                restaurant.cuisine,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: isSelected ? Colors.black : Colors.grey[800],
-                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                                restaurant.name,
+                                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 20,
+                                  color: isSelected ? Colors.black : Colors.black87,
                                 ),
                               ),
                             ),
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: isSelected ? const Color(0xFFF5F0E5) : Colors.grey[200],
-                                borderRadius: BorderRadius.circular(16),
-                                border: isSelected ? Border.all() : null,
-                              ),
-                              child: Text(
-                                restaurant.category,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: isSelected ? Colors.black : Colors.grey[800],
-                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                                ),
+                              decoration: BoxDecoration(color: const Color(0xFFE6D5C7), borderRadius: BorderRadius.circular(12)),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.star, size: 16, color: Colors.black87),
+                                  const SizedBox(width: 4),
+                                  Text(restaurant.rating.toString(), style: const TextStyle(fontWeight: FontWeight.bold)),
+                                ],
                               ),
                             ),
                           ],
                         ),
-                        Text(
-                          restaurant.priceRange,
-                          style: TextStyle(fontWeight: FontWeight.bold, color: isSelected ? Colors.black : Colors.grey[800]),
+                        const SizedBox(height: 6),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  margin: const EdgeInsets.only(right: 8),
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: isSelected ? const Color(0xFFF5F0E5) : Colors.grey[200],
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: isSelected ? Border.all() : null,
+                                  ),
+                                  child: Text(
+                                    restaurant.cuisine,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: isSelected ? Colors.black : Colors.grey[800],
+                                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: isSelected ? const Color(0xFFF5F0E5) : Colors.grey[200],
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: isSelected ? Border.all() : null,
+                                  ),
+                                  child: Text(
+                                    restaurant.category,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: isSelected ? Colors.black : Colors.grey[800],
+                                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Text(
+                              restaurant.priceRange,
+                              style: TextStyle(fontWeight: FontWeight.bold, color: isSelected ? Colors.black : Colors.grey[800]),
+                            ),
+                          ],
                         ),
+                        const SizedBox(height: 8),
+                        Text(restaurant.description, style: TextStyle(fontSize: 14, color: isSelected ? Colors.black87 : Colors.grey[700])),
+                        const SizedBox(height: 8),
                       ],
                     ),
-                    const SizedBox(height: 8),
-                    Text(restaurant.description, style: TextStyle(fontSize: 14, color: isSelected ? Colors.black87 : Colors.grey[700])),
-                    const SizedBox(height: 8),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           );

@@ -6,6 +6,7 @@ import 'recommendation_screen.dart';
 import 'auth/signin_screen.dart';
 import '../services/places_service.dart';
 import '../services/gemini_service.dart';
+import '../services/supabase_service.dart';
 
 class BasicInfoStepper extends StatefulWidget {
   const BasicInfoStepper({super.key});
@@ -850,7 +851,7 @@ class _BasicInfoStepperState extends State<BasicInfoStepper> {
     }
   }
 
-  void _submitAndNavigate() {
+  Future<void> _submitAndNavigate() async {
     final TripPreferences preferences = TripPreferences(
       destination: _locationController.text,
       startDate: _startDate,
@@ -867,7 +868,27 @@ class _BasicInfoStepperState extends State<BasicInfoStepper> {
       specialRequests: _specialRequestsController.text,
     );
 
-    Navigator.push(context, MaterialPageRoute(builder: (context) => RecommendationScreen(tripPreferences: preferences)));
+    String itineraryId;
+    try {
+      itineraryId = await SupabaseService().createItinerary(preferences: preferences, title: 'Trip to ${preferences.destination}');
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Center(child: Text('Failed to save preferences: $e', style: const TextStyle(color: Colors.black))),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+      return;
+    }
+
+    if (mounted) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => RecommendationScreen(tripPreferences: preferences, itineraryId: itineraryId)),
+      );
+    }
   }
 
   @override

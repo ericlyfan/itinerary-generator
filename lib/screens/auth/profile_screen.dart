@@ -35,7 +35,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     String? nameFromDb;
     try {
-      final data = await supabaseService.client.from('profiles').select().eq('id', user.id).single();
+      final data = await supabaseService.supabase.from('profiles').select().eq('id', user.id).single();
       nameFromDb = data['full_name'] as String?;
       if (data['avatar_url'] != null) {
         _avatarUrl = data['avatar_url'] as String;

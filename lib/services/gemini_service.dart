@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
+import 'package:logger/logger.dart';
+import 'places_service.dart';
 
 class AttractionRecommendation {
   AttractionRecommendation({
@@ -10,6 +12,7 @@ class AttractionRecommendation {
     required this.category,
     required this.priceRange,
     required this.rating,
+    this.imageUrls = const [],
   });
 
   factory AttractionRecommendation.fromJson(Map<String, dynamic> json) {
@@ -20,6 +23,7 @@ class AttractionRecommendation {
       category: json['category'] as String,
       priceRange: json['priceRange'] as String,
       rating: json['rating'] as double,
+      imageUrls: json['imageUrls'] != null ? List<String>.from(json['imageUrls']) : [],
     );
   }
 
@@ -29,6 +33,19 @@ class AttractionRecommendation {
   final String category;
   final String priceRange;
   final double rating;
+  List<String> imageUrls;
+
+  Map<String, dynamic> toJson() {
+    return {
+      'name': name,
+      'description': description,
+      'timeNeeded': timeNeeded,
+      'category': category,
+      'priceRange': priceRange,
+      'rating': rating,
+      'imageUrls': imageUrls,
+    };
+  }
 }
 
 class RestaurantRecommendation {
@@ -39,6 +56,7 @@ class RestaurantRecommendation {
     required this.category,
     required this.priceRange,
     required this.rating,
+    this.imageUrls = const [],
   });
 
   factory RestaurantRecommendation.fromJson(Map<String, dynamic> json) {
@@ -49,6 +67,7 @@ class RestaurantRecommendation {
       category: json['category'] as String,
       priceRange: json['priceRange'] as String,
       rating: json['rating'] as double,
+      imageUrls: json['imageUrls'] != null ? List<String>.from(json['imageUrls']) : [],
     );
   }
 
@@ -58,6 +77,19 @@ class RestaurantRecommendation {
   final String category;
   final String priceRange;
   final double rating;
+  List<String> imageUrls;
+
+  Map<String, dynamic> toJson() {
+    return {
+      'name': name,
+      'description': description,
+      'cuisine': cuisine,
+      'category': category,
+      'priceRange': priceRange,
+      'rating': rating,
+      'imageUrls': imageUrls,
+    };
+  }
 }
 
 class TripPreferences {
@@ -113,10 +145,13 @@ class TripPreferences {
 
 class GeminiService {
   final String apiKey = dotenv.env['GOOGLE_API_KEY'] ?? '';
+  final PlacesApiService _placesApiService = PlacesApiService();
+  final Logger _logger = Logger(printer: PrettyPrinter(methodCount: 0, errorMethodCount: 3, lineLength: 80));
 
   Future<Map<String, dynamic>> getRecommendations(TripPreferences preferences) async {
     try {
       final prompt = _buildPrompt(preferences);
+      _logger.i('Generating recommendations for ${preferences.destination}');
 
       final model = GenerativeModel(
         model: 'models/gemini-2.0-flash',
@@ -135,6 +170,7 @@ class GeminiService {
       final responseText = response.text;
 
       if (responseText == null || responseText.isEmpty) {
+        _logger.e('Empty response from Gemini API');
         throw Exception('Empty response from Gemini API');
       }
 
@@ -166,15 +202,46 @@ class GeminiService {
             }
           }
 
+          await _fetchImagesForPlaces(fallbackResults, preferences.destination);
+
           return fallbackResults;
         } catch (e) {
-          return fallbackResults; // Return empty lists if all parsing attempts fail
+          _logger.e('Failed to parse Gemini response', error: e);
+          return fallbackResults;
         }
       } catch (e) {
+        _logger.e('Failed to process response', error: e);
         throw Exception('Failed to parse response: $e');
       }
     } catch (e) {
+      _logger.e('Error generating recommendations', error: e);
       throw Exception('Error generating recommendations: $e');
+    }
+  }
+
+  Future<void> _fetchImagesForPlaces(Map<String, dynamic> results, String destination) async {
+    _logger.i('Fetching images for ${results['attractions'].length} attractions and ${results['restaurants'].length} restaurants');
+
+    // Fetch images for attractions
+    List<AttractionRecommendation> attractions = results['attractions'];
+    for (var i = 0; i < attractions.length; i++) {
+      try {
+        final imageUrls = await _placesApiService.getPlaceImageUrls(attractions[i].name, 'attraction', destination);
+        attractions[i].imageUrls = imageUrls;
+      } catch (e) {
+        _logger.e('Error fetching images for attraction ${attractions[i].name}', error: e);
+      }
+    }
+
+    // Fetch images for restaurants
+    List<RestaurantRecommendation> restaurants = results['restaurants'];
+    for (var i = 0; i < restaurants.length; i++) {
+      try {
+        final imageUrls = await _placesApiService.getPlaceImageUrls(restaurants[i].name, 'restaurant', destination);
+        restaurants[i].imageUrls = imageUrls;
+      } catch (e) {
+        _logger.e('Error fetching images for restaurant ${restaurants[i].name}', error: e);
+      }
     }
   }
 
@@ -254,5 +321,9 @@ For restaurants:
   ]
 }
 ''';
+  }
+
+  void dispose() {
+    _logger.close();
   }
 }

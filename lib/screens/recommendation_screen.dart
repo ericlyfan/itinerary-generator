@@ -28,6 +28,9 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
   bool _isAttractionSortVisible = false;
   bool _isRestaurantSortVisible = false;
 
+  bool _isLoadingMoreAttractions = false;
+  bool _isLoadingMoreRestaurants = false;
+
   List<AttractionRecommendation> _allAttractions = [];
   List<RestaurantRecommendation> _allRestaurants = [];
 
@@ -37,7 +40,7 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
   @override
   void initState() {
     super.initState();
-    _recommendationsFuture = _geminiService.getRecommendations(widget.tripPreferences);
+    _recommendationsFuture = _geminiService.getRecommendations(widget.tripPreferences, widget.itineraryId);
   }
 
   void _sortAttractions() {
@@ -92,6 +95,72 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
         return 'Name: A to Z';
       case SortOption.nameZA:
         return 'Name: Z to A';
+    }
+  }
+
+  Future<void> _loadMoreAttractions() async {
+    if (_isLoadingMoreAttractions) return;
+
+    setState(() {
+      _isLoadingMoreAttractions = true;
+    });
+
+    try {
+      final moreAttractions = await _geminiService.getMoreAttractions(widget.tripPreferences, widget.itineraryId);
+
+      if (!mounted) return;
+
+      setState(() {
+        _allAttractions.addAll(moreAttractions as List<AttractionRecommendation>);
+        _displayedAttractions = List.from(_allAttractions);
+        _sortAttractions();
+        _isLoadingMoreAttractions = false;
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to load more attractions: ${e.toString()}'), backgroundColor: Colors.red));
+      }
+
+      if (mounted) {
+        setState(() {
+          _isLoadingMoreAttractions = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _loadMoreRestaurants() async {
+    if (_isLoadingMoreRestaurants) return;
+
+    setState(() {
+      _isLoadingMoreRestaurants = true;
+    });
+
+    try {
+      final moreRestaurants = await _geminiService.getMoreRestaurants(widget.tripPreferences, widget.itineraryId);
+
+      if (!mounted) return;
+
+      setState(() {
+        _allRestaurants.addAll(moreRestaurants as List<RestaurantRecommendation>);
+        _displayedRestaurants = List.from(_allRestaurants);
+        _sortRestaurants();
+        _isLoadingMoreRestaurants = false;
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to load more restaurants: ${e.toString()}'), backgroundColor: Colors.red));
+      }
+
+      if (mounted) {
+        setState(() {
+          _isLoadingMoreRestaurants = false;
+        });
+      }
     }
   }
 
@@ -186,6 +255,101 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
             return const Center(child: Text('No recommendations found. Try adjusting your preferences.'));
           }
         },
+      ),
+    );
+  }
+
+  Widget _buildLoadingDots() {
+    return SizedBox(
+      width: 20,
+      height: 20,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // We use a faded background circle to maintain the space
+          Container(width: 20, height: 20, decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.black.withValues(alpha: 0.1))),
+          // Animated loading indicator with custom color
+          SizedBox(
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(
+              strokeWidth: 2.5,
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.black.withValues(alpha: 0.8)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLoadMoreAttractionsButton() {
+    return Padding(
+      padding: const EdgeInsets.only(top: 8.0, bottom: 16.0),
+      child: ElevatedButton(
+        onPressed: _isLoadingMoreAttractions ? null : _loadMoreAttractions,
+        style: ElevatedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          minimumSize: const Size(double.infinity, 54),
+          backgroundColor: const Color(0xFF40C9A2),
+          foregroundColor: Colors.black,
+          textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          elevation: 3,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          // Ensure the button doesn't visually change too much when disabled
+          disabledBackgroundColor: const Color(0xFF40C9A2).withValues(alpha: 0.9),
+          disabledForegroundColor: Colors.black.withValues(alpha: 0.8),
+        ),
+        child:
+            _isLoadingMoreAttractions
+                ? Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Animated dots
+                    _buildLoadingDots(),
+                    const SizedBox(width: 8),
+                    const Text('Discovering attractions...'),
+                  ],
+                )
+                : const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [Icon(Icons.explore, size: 20), SizedBox(width: 8), Text('Discover More Attractions')],
+                ),
+      ),
+    );
+  }
+
+  Widget _buildLoadMoreRestaurantsButton() {
+    return Padding(
+      padding: const EdgeInsets.only(top: 8.0, bottom: 16.0),
+      child: ElevatedButton(
+        onPressed: _isLoadingMoreRestaurants ? null : _loadMoreRestaurants,
+        style: ElevatedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          minimumSize: const Size(double.infinity, 54),
+          backgroundColor: const Color(0xFF40C9A2),
+          foregroundColor: Colors.black,
+          textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          elevation: 3,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          // Ensure the button doesn't visually change too much when disabled
+          disabledBackgroundColor: const Color(0xFF40C9A2).withValues(alpha: 0.9),
+          disabledForegroundColor: Colors.black.withValues(alpha: 0.8),
+        ),
+        child:
+            _isLoadingMoreRestaurants
+                ? Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Animated dots
+                    _buildLoadingDots(),
+                    const SizedBox(width: 8),
+                    const Text('Discovering restaurants...'),
+                  ],
+                )
+                : const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [Icon(Icons.restaurant_menu, size: 20), SizedBox(width: 8), Text('Discover More Restaurants')],
+                ),
       ),
     );
   }
@@ -437,6 +601,7 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
             ),
           );
         }),
+        Padding(padding: const EdgeInsets.only(bottom: 16.0), child: _buildLoadMoreAttractionsButton()),
       ],
     );
   }
@@ -696,6 +861,7 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
             ),
           );
         }),
+        Padding(padding: const EdgeInsets.only(bottom: 16.0), child: _buildLoadMoreRestaurantsButton()),
       ],
     );
   }

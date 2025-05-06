@@ -1,5 +1,8 @@
+import 'package:logger/logger.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'gemini_service.dart';
+
+final Logger _logger = Logger(printer: PrettyPrinter(methodCount: 0, errorMethodCount: 3, lineLength: 80));
 
 class SupabaseService {
   // Factory constructor to return the same instance every time
@@ -75,6 +78,28 @@ class SupabaseService {
         .from('itineraries')
         .update({'selected_attractions': selectedAttractions, 'selected_restaurants': selectedRestaurants})
         .eq('id', itineraryId);
+  }
+
+  /// Update the itinerary with the names of already generated places
+  Future<void> updateFoundPlaces({
+    required String itineraryId,
+    required List<String> attractionsFound,
+    required List<String> restaurantsFound,
+  }) async {
+    try {
+      // Convert the lists to JSON format (for JSONB columns)
+      final attractionsJson = attractionsFound;
+      final restaurantsJson = restaurantsFound;
+
+      // Update the database with the found places
+      await supabase
+          .from('itineraries')
+          .update({'attractions_found': attractionsJson, 'restaurants_found': restaurantsJson})
+          .eq('id', itineraryId);
+    } catch (e) {
+      _logger.e('Error updating found places: $e');
+      rethrow;
+    }
   }
 
   /// Save the fully finalized itinerary JSON once it’s generated.

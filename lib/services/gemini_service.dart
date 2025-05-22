@@ -216,7 +216,7 @@ class GeminiService {
             restaurantsFound: restaurantsFound,
           );
 
-          await _fetchImagesForPlaces(fallbackResults, preferences.destination);
+          // await _fetchImagesForPlaces(fallbackResults, preferences.destination);
 
           return fallbackResults;
         } catch (e) {
@@ -296,7 +296,7 @@ class GeminiService {
           restaurantsFound: existingRestaurants,
         );
 
-        await _fetchImagesForAttractions(moreAttractions, preferences.destination);
+        // await _fetchImagesForAttractions(moreAttractions, preferences.destination);
 
         return moreAttractions;
       } catch (e) {
@@ -372,7 +372,7 @@ class GeminiService {
           restaurantsFound: allRestaurants,
         );
 
-        await _fetchImagesForRestaurants(moreRestaurants, preferences.destination);
+        // await _fetchImagesForRestaurants(moreRestaurants, preferences.destination);
 
         return moreRestaurants;
       } catch (e) {

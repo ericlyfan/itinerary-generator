@@ -4,145 +4,7 @@ import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:logger/logger.dart';
 import 'places_service.dart';
 import 'supabase_service.dart';
-
-class AttractionRecommendation {
-  AttractionRecommendation({
-    required this.name,
-    required this.description,
-    required this.timeNeeded,
-    required this.category,
-    required this.priceRange,
-    required this.rating,
-    this.imageUrls = const [],
-  });
-
-  factory AttractionRecommendation.fromJson(Map<String, dynamic> json) {
-    return AttractionRecommendation(
-      name: json['name'] as String,
-      description: json['description'] as String,
-      timeNeeded: json['timeNeeded'] as String,
-      category: json['category'] as String,
-      priceRange: json['priceRange'] as String,
-      rating: json['rating'] as double,
-      imageUrls: json['imageUrls'] != null ? List<String>.from(json['imageUrls']) : [],
-    );
-  }
-
-  final String name;
-  final String description;
-  final String timeNeeded;
-  final String category;
-  final String priceRange;
-  final double rating;
-  List<String> imageUrls;
-
-  Map<String, dynamic> toJson() {
-    return {
-      'name': name,
-      'description': description,
-      'timeNeeded': timeNeeded,
-      'category': category,
-      'priceRange': priceRange,
-      'rating': rating,
-      'imageUrls': imageUrls,
-    };
-  }
-}
-
-class RestaurantRecommendation {
-  RestaurantRecommendation({
-    required this.name,
-    required this.description,
-    required this.cuisine,
-    required this.category,
-    required this.priceRange,
-    required this.rating,
-    this.imageUrls = const [],
-  });
-
-  factory RestaurantRecommendation.fromJson(Map<String, dynamic> json) {
-    return RestaurantRecommendation(
-      name: json['name'] as String,
-      description: json['description'] as String,
-      cuisine: json['cuisine'] as String,
-      category: json['category'] as String,
-      priceRange: json['priceRange'] as String,
-      rating: json['rating'] as double,
-      imageUrls: json['imageUrls'] != null ? List<String>.from(json['imageUrls']) : [],
-    );
-  }
-
-  final String name;
-  final String description;
-  final String cuisine;
-  final String category;
-  final String priceRange;
-  final double rating;
-  List<String> imageUrls;
-
-  Map<String, dynamic> toJson() {
-    return {
-      'name': name,
-      'description': description,
-      'cuisine': cuisine,
-      'category': category,
-      'priceRange': priceRange,
-      'rating': rating,
-      'imageUrls': imageUrls,
-    };
-  }
-}
-
-class TripPreferences {
-  TripPreferences({
-    required this.destination,
-    this.startDate,
-    this.endDate,
-    required this.adults,
-    required this.children,
-    required this.infants,
-    required this.pets,
-    required this.tripTypes,
-    required this.travelStyles,
-    required this.activities,
-    required this.diningPreferences,
-    required this.considerations,
-    required this.specialRequests,
-  });
-
-  Map<String, dynamic> toJson() {
-    return {
-      'destination': destination,
-      'startDate': startDate?.toIso8601String(),
-      'endDate': endDate?.toIso8601String(),
-      'tripDuration': startDate != null && endDate != null ? endDate!.difference(startDate!).inDays + 1 : null,
-      'adults': adults,
-      'children': children,
-      'infants': infants,
-      'pets': pets,
-      'tripTypes': tripTypes,
-      'travelStyles': travelStyles,
-      'activities': activities,
-      'diningPreferences': diningPreferences,
-      'considerations': considerations,
-      'specialRequests': specialRequests,
-    };
-  }
-
-  final String destination;
-  final DateTime? startDate;
-  final DateTime? endDate;
-  final int adults;
-  final int children;
-  final int infants;
-  final int pets;
-  final List<String> tripTypes;
-  final List<String> travelStyles;
-  final List<String> activities;
-  final List<String> diningPreferences;
-  final List<String> considerations;
-  final String specialRequests;
-}
+import '../models.dart';
 
 class GeminiService {
   final String apiKey = dotenv.env['GOOGLE_API_KEY'] ?? '';
@@ -233,7 +95,7 @@ class GeminiService {
     }
   }
 
-  Future<List<dynamic>> getMoreAttractions(TripPreferences preferences, String itineraryId) async {
+  Future<List<AttractionRecommendation>> getMoreAttractions(TripPreferences preferences, String itineraryId) async {
     try {
       final itinerary =
           await _supabaseService.supabase.from('itineraries').select('attractions_found, restaurants_found').eq('id', itineraryId).single();
@@ -309,7 +171,7 @@ class GeminiService {
     }
   }
 
-  Future<List<dynamic>> getMoreRestaurants(TripPreferences preferences, String itineraryId) async {
+  Future<List<RestaurantRecommendation>> getMoreRestaurants(TripPreferences preferences, String itineraryId) async {
     try {
       final itinerary =
           await _supabaseService.supabase.from('itineraries').select('restaurants_found, attractions_found').eq('id', itineraryId).single();

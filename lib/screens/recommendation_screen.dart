@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import '../services/gemini_service.dart';
 import '../services/supabase_service.dart';
+import '../models.dart';
 
 class RecommendationScreen extends StatefulWidget {
   const RecommendationScreen({super.key, required this.tripPreferences, required this.itineraryId});
@@ -134,7 +135,7 @@ class _RecommendationScreenState extends State<RecommendationScreen> with Single
       if (!mounted) return;
 
       setState(() {
-        _allAttractions.addAll(moreAttractions as List<AttractionRecommendation>);
+        _allAttractions.addAll(moreAttractions);
         _displayedAttractions = List.from(_allAttractions);
         _sortAttractions();
         _isLoadingMoreAttractions = false;
@@ -187,7 +188,7 @@ class _RecommendationScreenState extends State<RecommendationScreen> with Single
       if (!mounted) return;
 
       setState(() {
-        _allRestaurants.addAll(moreRestaurants as List<RestaurantRecommendation>);
+        _allRestaurants.addAll(moreRestaurants);
         _displayedRestaurants = List.from(_allRestaurants);
         _sortRestaurants();
         _isLoadingMoreRestaurants = false;

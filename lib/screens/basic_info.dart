@@ -5,8 +5,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'recommendation_screen.dart';
 import 'auth/signin_screen.dart';
 import '../services/places_service.dart';
-import '../services/gemini_service.dart';
 import '../services/supabase_service.dart';
+import '../models.dart';
 
 class BasicInfoStepper extends StatefulWidget {
   const BasicInfoStepper({super.key});

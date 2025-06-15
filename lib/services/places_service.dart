@@ -122,7 +122,7 @@ class PlacesApiService {
 
         if (data['photos'] != null && data['photos'].isNotEmpty) {
           final photos = data['photos'] as List;
-          final int photoCount = photos.length > 14 ? 14 : photos.length;
+          final int photoCount = photos.length > 1 ? 1 : photos.length;
 
           List<String> names = [];
           for (int i = 0; i < photoCount; i++) {

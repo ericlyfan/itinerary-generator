@@ -16,9 +16,8 @@ class GeminiService {
     try {
       final prompt = _buildPrompt(preferences);
       _logger.i('Generating recommendations for ${preferences.destination} (Itinerary: $itineraryId)');
-
       final model = GenerativeModel(
-        model: 'models/gemini-2.0-flash',
+        model: 'models/gemini-2.5-flash-preview-05-20',
         apiKey: apiKey,
         generationConfig: GenerationConfig(
           temperature: 1.3,
@@ -78,7 +77,7 @@ class GeminiService {
             restaurantsFound: restaurantsFound,
           );
 
-          // await _fetchImagesForPlaces(fallbackResults, preferences.destination);
+          await _fetchImagesForPlaces(fallbackResults, preferences.destination);
 
           return fallbackResults;
         } catch (e) {
@@ -158,7 +157,7 @@ class GeminiService {
           restaurantsFound: existingRestaurants,
         );
 
-        // await _fetchImagesForAttractions(moreAttractions, preferences.destination);
+        await _fetchImagesForAttractions(moreAttractions, preferences.destination);
 
         return moreAttractions;
       } catch (e) {
@@ -234,7 +233,7 @@ class GeminiService {
           restaurantsFound: allRestaurants,
         );
 
-        // await _fetchImagesForRestaurants(moreRestaurants, preferences.destination);
+        await _fetchImagesForRestaurants(moreRestaurants, preferences.destination);
 
         return moreRestaurants;
       } catch (e) {

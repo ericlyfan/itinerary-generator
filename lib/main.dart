@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'screens/landing_screen.dart';
+import 'screens/itineraries_list_screen.dart';
 import 'services/supabase_service.dart';
 
 final supabaseService = SupabaseService();
@@ -136,8 +137,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
     if (_isLoading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     } else {
-      return _isSignedIn ? const LandingScreen() : const LandingScreen();
-      // TODO: replace this profile screen with their itinerary
+      return _isSignedIn ? const ItinerariesListScreen() : const LandingScreen();
     }
   }
 }

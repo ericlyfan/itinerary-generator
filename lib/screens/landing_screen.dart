@@ -4,7 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'basic_info.dart';
 import 'auth/signin_screen.dart';
 import '../services/supabase_service.dart';
-import 'auth/profile_screen.dart';
+import 'itineraries_list_screen.dart';
 
 final supabaseService = SupabaseService();
 
@@ -89,9 +89,10 @@ class _LandingScreenState extends State<LandingScreen> {
     });
   }
 
-  void _navigateToProfile() {
-    Navigator.push(context, MaterialPageRoute(builder: (context) => const ProfileScreen())).then((_) {
-      // When returning from profile screen, update state if needed
+  void _navigateToTrips() {
+    // Renamed from _navigateToProfile
+    Navigator.push(context, MaterialPageRoute(builder: (context) => const ItinerariesListScreen())).then((_) {
+      // When returning from trips screen, update state if needed
       if (mounted) {
         setState(() {
           _isUserLoggedIn = supabaseService.isAuthenticated;
@@ -162,11 +163,11 @@ class _LandingScreenState extends State<LandingScreen> {
                     ),
                   ),
                   TextButton(
-                    onPressed: _isUserLoggedIn ? _navigateToProfile : _navigateToSignIn,
+                    onPressed: _isUserLoggedIn ? _navigateToTrips : _navigateToSignIn,
                     style: OutlinedButton.styleFrom(
                       textStyle: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
                     ),
-                    child: Text(_isUserLoggedIn ? 'My Profile' : 'Sign In'),
+                    child: Text(_isUserLoggedIn ? 'My Trips' : 'Sign In'),
                   ),
                 ],
               ),

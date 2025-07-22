@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:carousel_slider/carousel_slider.dart';
+import 'final_itinerary_screen.dart';
 import '../services/gemini_service.dart';
 import '../services/supabase_service.dart';
 import '../models.dart';
@@ -36,6 +37,7 @@ class _RecommendationScreenState extends State<RecommendationScreen> with Single
   bool _isLoadingMoreAttractions = false;
   bool _isLoadingMoreRestaurants = false;
   bool _isProcessingPreferences = false;
+  bool _isGeneratingItinerary = false;
 
   TabController? _tabController;
 
@@ -208,6 +210,49 @@ class _RecommendationScreenState extends State<RecommendationScreen> with Single
     }
   }
 
+  Future<void> _generateFinalItinerary() async {
+    // Check if user has selected any attractions or restaurants
+    if (_selectedAttractions.isEmpty && _selectedRestaurants.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select at least one attraction or restaurant before generating your itinerary.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isGeneratingItinerary = true;
+    });
+
+    try {
+      final scheduledItinerary = await _geminiService.generateFinalItinerary(widget.itineraryId);
+
+      if (!mounted) return;
+
+      // Navigate to the final itinerary screen
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => FinalItineraryScreen(scheduledItinerary: scheduledItinerary, itineraryId: widget.itineraryId),
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to generate itinerary: ${e.toString()}'), backgroundColor: Colors.red));
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isGeneratingItinerary = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -328,7 +373,7 @@ class _RecommendationScreenState extends State<RecommendationScreen> with Single
 
   Widget _buildLoadMoreAttractionsButton() {
     return Padding(
-      padding: const EdgeInsets.only(top: 8.0, bottom: 16.0),
+      padding: const EdgeInsets.only(top: 8.0),
       child: Row(
         children: [
           // Edit Parameters button
@@ -383,7 +428,7 @@ class _RecommendationScreenState extends State<RecommendationScreen> with Single
 
   Widget _buildLoadMoreRestaurantsButton() {
     return Padding(
-      padding: const EdgeInsets.only(top: 8.0, bottom: 16.0),
+      padding: const EdgeInsets.only(top: 8.0),
       child: Row(
         children: [
           // Edit Parameters button
@@ -438,6 +483,46 @@ class _RecommendationScreenState extends State<RecommendationScreen> with Single
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildGenerateItineraryButton() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+      child: ElevatedButton(
+        onPressed: _isGeneratingItinerary ? null : _generateFinalItinerary,
+        style: ElevatedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(vertical: 20),
+          backgroundColor: const Color(0xFF4CAF50),
+          foregroundColor: Colors.white,
+          textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+          elevation: 4,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          disabledBackgroundColor: const Color(0xFF4CAF50).withValues(alpha: 0.6),
+        ),
+        child:
+            _isGeneratingItinerary
+                ? Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white.withValues(alpha: 0.8)),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    const Text('Generating Your Itinerary...'),
+                  ],
+                )
+                : const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [Icon(Icons.event_note, size: 22), SizedBox(width: 8), Text('Generate My Itinerary')],
+                ),
       ),
     );
   }
@@ -698,7 +783,8 @@ class _RecommendationScreenState extends State<RecommendationScreen> with Single
                 ),
               );
             }),
-            Padding(padding: const EdgeInsets.only(bottom: 16.0), child: _buildLoadMoreAttractionsButton()),
+            Padding(padding: const EdgeInsets.only(bottom: 2.0), child: _buildLoadMoreAttractionsButton()),
+            _buildGenerateItineraryButton(),
           ],
         ),
       ],
@@ -909,42 +995,50 @@ class _RecommendationScreenState extends State<RecommendationScreen> with Single
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Row(
-                                  children: [
-                                    Container(
-                                      margin: const EdgeInsets.only(right: 8),
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: isSelected ? const Color(0xFFF5F0E5) : Colors.grey[200],
-                                        borderRadius: BorderRadius.circular(16),
-                                        border: isSelected ? Border.all() : null,
-                                      ),
-                                      child: Text(
-                                        restaurant.cuisine,
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: isSelected ? Colors.black : Colors.grey[800],
-                                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                                Expanded(
+                                  child: Row(
+                                    children: [
+                                      Flexible(
+                                        child: Container(
+                                          margin: const EdgeInsets.only(right: 8),
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: isSelected ? const Color(0xFFF5F0E5) : Colors.grey[200],
+                                            borderRadius: BorderRadius.circular(16),
+                                            border: isSelected ? Border.all() : null,
+                                          ),
+                                          child: Text(
+                                            restaurant.cuisine,
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: isSelected ? Colors.black : Colors.grey[800],
+                                              fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: isSelected ? const Color(0xFFF5F0E5) : Colors.grey[200],
-                                        borderRadius: BorderRadius.circular(16),
-                                        border: isSelected ? Border.all() : null,
-                                      ),
-                                      child: Text(
-                                        restaurant.category,
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: isSelected ? Colors.black : Colors.grey[800],
-                                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                                      Flexible(
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: isSelected ? const Color(0xFFF5F0E5) : Colors.grey[200],
+                                            borderRadius: BorderRadius.circular(16),
+                                            border: isSelected ? Border.all() : null,
+                                          ),
+                                          child: Text(
+                                            restaurant.category,
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: isSelected ? Colors.black : Colors.grey[800],
+                                              fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
                                 Text(
                                   restaurant.priceRange,
@@ -966,7 +1060,8 @@ class _RecommendationScreenState extends State<RecommendationScreen> with Single
                 ),
               );
             }),
-            Padding(padding: const EdgeInsets.only(bottom: 16.0), child: _buildLoadMoreRestaurantsButton()),
+            Padding(padding: const EdgeInsets.only(bottom: 2.0), child: _buildLoadMoreRestaurantsButton()),
+            _buildGenerateItineraryButton(),
           ],
         ),
       ],

@@ -12,12 +12,48 @@ class GeminiService {
   final Logger _logger = Logger(printer: PrettyPrinter(methodCount: 0, errorMethodCount: 3, lineLength: 80));
   final SupabaseService _supabaseService = SupabaseService();
 
+  // Token tracking properties
+  int _totalPromptTokens = 0;
+  int _totalResponseTokens = 0;
+  int _totalTokens = 0;
+
+  void _logTokenUsage(GenerateContentResponse response, String operation) {
+    final usage = response.usageMetadata;
+    if (usage != null) {
+      // Update cumulative totals
+      _totalPromptTokens += usage.promptTokenCount ?? 0;
+      _totalResponseTokens += usage.candidatesTokenCount ?? 0;
+      _totalTokens += usage.totalTokenCount ?? 0;
+
+      _logger.i('Token usage for $operation:');
+      _logger.i('  Prompt tokens: ${usage.promptTokenCount}');
+      _logger.i('  Response tokens: ${usage.candidatesTokenCount}');
+      _logger.i('  Total tokens: ${usage.totalTokenCount}');
+      _logger.i('Session totals - Prompt: $_totalPromptTokens, Response: $_totalResponseTokens, Total: $_totalTokens');
+    } else {
+      _logger.w('No usage metadata available for $operation');
+    }
+  }
+
+  // Method to get current usage stats
+  Map<String, int> getTokenUsageStats() {
+    return {'totalPromptTokens': _totalPromptTokens, 'totalResponseTokens': _totalResponseTokens, 'totalTokens': _totalTokens};
+  }
+
+  // Method to reset token counters
+  void resetTokenCounters() {
+    _totalPromptTokens = 0;
+    _totalResponseTokens = 0;
+    _totalTokens = 0;
+    _logger.i('Token counters reset');
+  }
+
   Future<Map<String, dynamic>> getRecommendations(TripPreferences preferences, String itineraryId) async {
     try {
       final prompt = _buildPrompt(preferences);
       _logger.i('Generating recommendations for ${preferences.destination} (Itinerary: $itineraryId)');
       final model = GenerativeModel(
-        model: 'models/gemini-2.5-flash-preview-05-20',
+        model: 'models/gemini-2.0-flash',
         apiKey: apiKey,
         generationConfig: GenerationConfig(
           temperature: 1.3,
@@ -30,6 +66,8 @@ class GeminiService {
 
       // Generate context with Gemini
       final response = await model.generateContent([Content.text(prompt)]);
+      _logTokenUsage(response, 'getRecommendations for ${preferences.destination}');
+
       final responseText = response.text;
 
       if (responseText == null || responseText.isEmpty) {
@@ -122,6 +160,8 @@ class GeminiService {
       );
 
       final response = await model.generateContent([Content.text(prompt)]);
+      _logTokenUsage(response, 'getMoreAttractions for ${preferences.destination}');
+
       final responseText = response.text;
 
       if (responseText == null || responseText.isEmpty) {
@@ -198,6 +238,8 @@ class GeminiService {
       );
 
       final response = await model.generateContent([Content.text(prompt)]);
+      _logTokenUsage(response, 'getMoreRestaurants for ${preferences.destination}');
+
       final responseText = response.text;
 
       if (responseText == null || responseText.isEmpty) {
@@ -295,6 +337,91 @@ class GeminiService {
       } catch (e) {
         _logger.e('Error fetching images for restaurant ${restaurants[i].name}', error: e);
       }
+    }
+  }
+
+  Future<ScheduledItinerary> generateFinalItinerary(String itineraryId) async {
+    try {
+      // Fetch the itinerary data from Supabase
+      final supabaseResponse =
+          await _supabaseService.supabase
+              .from('itineraries')
+              .select('preferences, selected_attractions, selected_restaurants, title, destination, start_date, end_date')
+              .eq('id', itineraryId)
+              .single();
+
+      final preferencesData = supabaseResponse['preferences'];
+      final selectedAttractions = supabaseResponse['selected_attractions'] ?? [];
+      final selectedRestaurants = supabaseResponse['selected_restaurants'] ?? [];
+      final destination = supabaseResponse['destination'] as String;
+      final startDateStr = supabaseResponse['start_date'] as String?;
+      final endDateStr = supabaseResponse['end_date'] as String?;
+
+      if (selectedAttractions.isEmpty && selectedRestaurants.isEmpty) {
+        throw Exception('No attractions or restaurants selected for itinerary');
+      }
+
+      // Create TripPreferences object
+      final preferences = TripPreferences(
+        destination: preferencesData['destination'],
+        startDate: startDateStr != null ? DateTime.parse(startDateStr) : null,
+        endDate: endDateStr != null ? DateTime.parse(endDateStr) : null,
+        adults: preferencesData['adults'] ?? 1,
+        children: preferencesData['children'] ?? 0,
+        infants: preferencesData['infants'] ?? 0,
+        pets: preferencesData['pets'] ?? 0,
+        tripTypes: List<String>.from(preferencesData['tripTypes'] ?? []),
+        travelStyles: List<String>.from(preferencesData['travelStyles'] ?? []),
+        activities: List<String>.from(preferencesData['activities'] ?? []),
+        diningPreferences: List<String>.from(preferencesData['diningPreferences'] ?? []),
+        considerations: List<String>.from(preferencesData['considerations'] ?? []),
+        specialRequests: preferencesData['specialRequests'] ?? '',
+      );
+
+      final prompt = _buildFinalItineraryPrompt(preferences, selectedAttractions, selectedRestaurants);
+
+      _logger.i('Generating final itinerary for $destination (Itinerary: $itineraryId)');
+
+      final model = GenerativeModel(
+        model: 'models/gemini-2.0-flash',
+        apiKey: apiKey,
+        generationConfig: GenerationConfig(
+          temperature: 0.8,
+          topK: 40,
+          topP: 0.95,
+          maxOutputTokens: 8192,
+          responseMimeType: 'application/json',
+        ),
+      );
+
+      final geminiResponse = await model.generateContent([Content.text(prompt)]);
+      _logTokenUsage(geminiResponse, 'generateFinalItinerary for $destination');
+
+      final responseText = geminiResponse.text;
+
+      if (responseText == null || responseText.isEmpty) {
+        _logger.e('Empty response from Gemini API for final itinerary');
+        throw Exception('Empty response from Gemini API');
+      }
+
+      try {
+        String cleanedJson = responseText.replaceAll('```json', '').replaceAll('```', '').trim();
+        final itineraryJson = jsonDecode(cleanedJson);
+
+        final scheduledItinerary = ScheduledItinerary.fromJson(itineraryJson);
+
+        // Save the finalized itinerary to Supabase
+        await _supabaseService.finalizeItinerary(itineraryId: itineraryId, finalizedItinerary: itineraryJson);
+
+        _logger.i('Successfully generated and saved final itinerary');
+        return scheduledItinerary;
+      } catch (e) {
+        _logger.e('Failed to parse final itinerary response', error: e);
+        throw Exception('Failed to parse final itinerary: $e');
+      }
+    } catch (e) {
+      _logger.e('Error generating final itinerary', error: e);
+      throw Exception('Error generating final itinerary: $e');
     }
   }
 
@@ -430,6 +557,98 @@ class GeminiService {
       ```
 
       I need ONLY new recommendations that I haven't already seen. Please verify that none of your recommendations match any names in my exclusion list.
+      ''';
+  }
+
+  String _buildFinalItineraryPrompt(TripPreferences preferences, List<dynamic> selectedAttractions, List<dynamic> selectedRestaurants) {
+    final startDate = preferences.startDate;
+    final endDate = preferences.endDate;
+
+    if (startDate == null || endDate == null) {
+      throw Exception('Start and end dates are required for final itinerary generation');
+    }
+
+    final duration = endDate.difference(startDate).inDays + 1;
+
+    final attractionsList = selectedAttractions
+        .map((a) => '• ${a['name']}: ${a['description']} (${a['timeNeeded']}, ${a['priceRange']})')
+        .join('\n');
+    final restaurantsList = selectedRestaurants
+        .map((r) => '• ${r['name']}: ${r['description']} (${r['cuisine']}, ${r['priceRange']})')
+        .join('\n');
+
+    return '''
+      Create a detailed daily itinerary for a $duration-day trip to ${preferences.destination} from ${startDate.toIso8601String().split('T')[0]} to ${endDate.toIso8601String().split('T')[0]}.
+
+      **Trip Details:**
+      - Destination: ${preferences.destination}
+      - Duration: $duration days
+      - Group: ${preferences.adults} adults, ${preferences.children} children, ${preferences.infants} infants, ${preferences.pets} pets
+      - Trip Types: ${preferences.tripTypes.join(', ')}
+      - Travel Style: ${preferences.travelStyles.join(', ')}
+      - Special Considerations: ${preferences.considerations.join(', ')}
+      - Special Requests: ${preferences.specialRequests}
+
+      **Selected Attractions to Include:**
+      $attractionsList
+
+      **Selected Restaurants to Include:**
+      $restaurantsList
+
+      **Requirements:**
+      1. Include ALL selected attractions and restaurants in the itinerary
+      2. Create a logical daily flow considering travel time, meal times, and attraction hours
+      3. Balance each day with a mix of activities and dining
+      4. Consider the group composition (children, accessibility needs, etc.)
+      5. Include realistic time estimates and travel considerations
+      6. Add brief transportation notes between activities when helpful
+
+      **Guidelines:**
+      - Start each day around 9:00 AM
+      - Include breakfast, lunch, and dinner at appropriate times
+      - Allow for travel time between locations
+      - Consider attraction operating hours and peak times
+      - End each day by 9:00-10:00 PM
+      - Include rest periods if traveling with children/infants
+      - Provide cost estimates where possible
+
+      Return the response as a valid JSON object following this exact schema:
+
+      ```json
+      {
+        "title": "Trip title",
+        "destination": "${preferences.destination}",
+        "startDate": "${startDate.toIso8601String()}",
+        "endDate": "${endDate.toIso8601String()}",
+        "overview": "Brief overview of the trip highlighting key experiences",
+        "totalEstimatedCost": "Estimated total cost range (e.g., '\$1,500 - \$2,500 per person')",
+        "transportationNotes": "General transportation recommendations",
+        "tips": [
+          "Helpful tip 1",
+          "Helpful tip 2",
+          "Helpful tip 3"
+        ],
+        "dailySchedules": [
+          {
+            "date": "YYYY-MM-DD",
+            "dayNumber": 1,
+            "theme": "Optional daily theme",
+            "notes": "Any special notes for the day",
+            "activities": [
+              {
+                "name": "Activity/Restaurant name exactly as provided above",
+                "type": "attraction" or "restaurant",
+                "startTime": "9:00 AM",
+                "endTime": "11:00 AM",
+                "description": "Brief description of what to expect",
+                "location": "Specific area/neighborhood",
+                "estimatedCost": "Cost estimate (e.g., '\$25 per person')",
+                "duration": "Time needed (e.g., '2 hours')",
+                "transportationToNext": "How to get to next activity (e.g., '10-minute walk', '15-minute taxi ride')"
+              }
+            ]
+          }
+        ]
       ''';
   }
 

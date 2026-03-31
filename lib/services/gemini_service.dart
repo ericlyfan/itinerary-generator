@@ -2,15 +2,13 @@ import 'dart:convert';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:logger/logger.dart';
-import 'places_service.dart';
-import 'supabase_service.dart';
+import 'local_storage_service.dart';
 import '../models.dart';
 
 class GeminiService {
   final String apiKey = dotenv.env['GOOGLE_API_KEY'] ?? '';
-  final PlacesApiService _placesApiService = PlacesApiService();
   final Logger _logger = Logger(printer: PrettyPrinter(methodCount: 0, errorMethodCount: 3, lineLength: 80));
-  final SupabaseService _supabaseService = SupabaseService();
+  final LocalStorageService _localStorageService = LocalStorageService();
 
   // Token tracking properties
   int _totalPromptTokens = 0;
@@ -53,7 +51,7 @@ class GeminiService {
       final prompt = _buildPrompt(preferences);
       _logger.i('Generating recommendations for ${preferences.destination} (Itinerary: $itineraryId)');
       final model = GenerativeModel(
-        model: 'models/gemini-2.0-flash',
+        model: 'models/gemini-2.5-flash-lite',
         apiKey: apiKey,
         generationConfig: GenerationConfig(
           temperature: 1.3,
@@ -109,13 +107,11 @@ class GeminiService {
           }
 
           // Update the itinerary with found place names
-          await _supabaseService.updateFoundPlaces(
+          await _localStorageService.updateFoundPlaces(
             itineraryId: itineraryId,
             attractionsFound: attractionsFound,
             restaurantsFound: restaurantsFound,
           );
-
-          await _fetchImagesForPlaces(fallbackResults, preferences.destination);
 
           return fallbackResults;
         } catch (e) {
@@ -134,8 +130,7 @@ class GeminiService {
 
   Future<List<AttractionRecommendation>> getMoreAttractions(TripPreferences preferences, String itineraryId) async {
     try {
-      final itinerary =
-          await _supabaseService.supabase.from('itineraries').select('attractions_found, restaurants_found').eq('id', itineraryId).single();
+      final itinerary = await _localStorageService.getItinerary(itineraryId);
 
       final List<String> existingAttractions =
           itinerary['attractions_found'] != null ? List<String>.from(itinerary['attractions_found']) : [];
@@ -148,7 +143,7 @@ class GeminiService {
       _logger.i('Generating more attractions for ${preferences.destination} (Itinerary: $itineraryId)');
 
       final model = GenerativeModel(
-        model: 'models/gemini-2.0-flash',
+        model: 'models/gemini-2.5-flash-lite',
         apiKey: apiKey,
         generationConfig: GenerationConfig(
           temperature: 1.3,
@@ -191,13 +186,11 @@ class GeminiService {
 
         // Add the new attractions to the existing list
         final List<String> allAttractions = [...existingAttractions, ...newAttractionNames];
-        await _supabaseService.updateFoundPlaces(
+        await _localStorageService.updateFoundPlaces(
           itineraryId: itineraryId,
           attractionsFound: allAttractions,
           restaurantsFound: existingRestaurants,
         );
-
-        await _fetchImagesForAttractions(moreAttractions, preferences.destination);
 
         return moreAttractions;
       } catch (e) {
@@ -212,8 +205,7 @@ class GeminiService {
 
   Future<List<RestaurantRecommendation>> getMoreRestaurants(TripPreferences preferences, String itineraryId) async {
     try {
-      final itinerary =
-          await _supabaseService.supabase.from('itineraries').select('restaurants_found, attractions_found').eq('id', itineraryId).single();
+      final itinerary = await _localStorageService.getItinerary(itineraryId);
 
       final List<String> existingRestaurants =
           itinerary['restaurants_found'] != null ? List<String>.from(itinerary['restaurants_found']) : [];
@@ -226,7 +218,7 @@ class GeminiService {
       _logger.i('Generating more restaurants for ${preferences.destination} (Itinerary: $itineraryId)');
 
       final model = GenerativeModel(
-        model: 'models/gemini-2.0-flash',
+        model: 'models/gemini-2.5-flash-lite',
         apiKey: apiKey,
         generationConfig: GenerationConfig(
           temperature: 1.3,
@@ -269,13 +261,11 @@ class GeminiService {
 
         // Add the new restaurants to the existing list
         final List<String> allRestaurants = [...existingRestaurants, ...newRestaurantNames];
-        await _supabaseService.updateFoundPlaces(
+        await _localStorageService.updateFoundPlaces(
           itineraryId: itineraryId,
           attractionsFound: existingAttractions,
           restaurantsFound: allRestaurants,
         );
-
-        await _fetchImagesForRestaurants(moreRestaurants, preferences.destination);
 
         return moreRestaurants;
       } catch (e) {
@@ -288,74 +278,17 @@ class GeminiService {
     }
   }
 
-  Future<void> _fetchImagesForAttractions(List<AttractionRecommendation> attractions, String destination) async {
-    _logger.i('Fetching images for ${attractions.length} attractions');
-
-    for (var i = 0; i < attractions.length; i++) {
-      try {
-        final imageUrls = await _placesApiService.getPlaceImageUrls(attractions[i].name, 'attraction', destination);
-        attractions[i].imageUrls = imageUrls;
-      } catch (e) {
-        _logger.e('Error fetching images for attraction ${attractions[i].name}', error: e);
-      }
-    }
-  }
-
-  Future<void> _fetchImagesForRestaurants(List<RestaurantRecommendation> restaurants, String destination) async {
-    _logger.i('Fetching images for ${restaurants.length} restaurants');
-
-    for (var i = 0; i < restaurants.length; i++) {
-      try {
-        final imageUrls = await _placesApiService.getPlaceImageUrls(restaurants[i].name, 'restaurant', destination);
-        restaurants[i].imageUrls = imageUrls;
-      } catch (e) {
-        _logger.e('Error fetching images for restaurant ${restaurants[i].name}', error: e);
-      }
-    }
-  }
-
-  Future<void> _fetchImagesForPlaces(Map<String, dynamic> results, String destination) async {
-    _logger.i('Fetching images for ${results['attractions'].length} attractions and ${results['restaurants'].length} restaurants');
-
-    // Fetch images for attractions
-    List<AttractionRecommendation> attractions = results['attractions'];
-    for (var i = 0; i < attractions.length; i++) {
-      try {
-        final imageUrls = await _placesApiService.getPlaceImageUrls(attractions[i].name, 'attraction', destination);
-        attractions[i].imageUrls = imageUrls;
-      } catch (e) {
-        _logger.e('Error fetching images for attraction ${attractions[i].name}', error: e);
-      }
-    }
-
-    // Fetch images for restaurants
-    List<RestaurantRecommendation> restaurants = results['restaurants'];
-    for (var i = 0; i < restaurants.length; i++) {
-      try {
-        final imageUrls = await _placesApiService.getPlaceImageUrls(restaurants[i].name, 'restaurant', destination);
-        restaurants[i].imageUrls = imageUrls;
-      } catch (e) {
-        _logger.e('Error fetching images for restaurant ${restaurants[i].name}', error: e);
-      }
-    }
-  }
-
   Future<ScheduledItinerary> generateFinalItinerary(String itineraryId) async {
     try {
-      // Fetch the itinerary data from Supabase
-      final supabaseResponse =
-          await _supabaseService.supabase
-              .from('itineraries')
-              .select('preferences, selected_attractions, selected_restaurants, title, destination, start_date, end_date')
-              .eq('id', itineraryId)
-              .single();
+      // Fetch the itinerary data from local storage
+      final itineraryData = await _localStorageService.getItinerary(itineraryId);
 
-      final preferencesData = supabaseResponse['preferences'];
-      final selectedAttractions = supabaseResponse['selected_attractions'] ?? [];
-      final selectedRestaurants = supabaseResponse['selected_restaurants'] ?? [];
-      final destination = supabaseResponse['destination'] as String;
-      final startDateStr = supabaseResponse['start_date'] as String?;
-      final endDateStr = supabaseResponse['end_date'] as String?;
+      final preferencesData = itineraryData['preferences'];
+      final selectedAttractions = itineraryData['selected_attractions'] ?? [];
+      final selectedRestaurants = itineraryData['selected_restaurants'] ?? [];
+      final destination = itineraryData['destination'] as String;
+      final startDateStr = itineraryData['start_date'] as String?;
+      final endDateStr = itineraryData['end_date'] as String?;
 
       if (selectedAttractions.isEmpty && selectedRestaurants.isEmpty) {
         throw Exception('No attractions or restaurants selected for itinerary');
@@ -383,7 +316,7 @@ class GeminiService {
       _logger.i('Generating final itinerary for $destination (Itinerary: $itineraryId)');
 
       final model = GenerativeModel(
-        model: 'models/gemini-2.0-flash',
+        model: 'models/gemini-2.5-flash-lite',
         apiKey: apiKey,
         generationConfig: GenerationConfig(
           temperature: 0.8,
@@ -410,8 +343,8 @@ class GeminiService {
 
         final scheduledItinerary = ScheduledItinerary.fromJson(itineraryJson);
 
-        // Save the finalized itinerary to Supabase
-        await _supabaseService.finalizeItinerary(itineraryId: itineraryId, finalizedItinerary: itineraryJson);
+        // Save the finalized itinerary to local storage
+        await _localStorageService.finalizeItinerary(itineraryId: itineraryId, finalizedItinerary: itineraryJson);
 
         _logger.i('Successfully generated and saved final itinerary');
         return scheduledItinerary;

@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:syncfusion_flutter_datepicker/datepicker.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'recommendation_screen.dart';
-import 'auth/signin_screen.dart';
 import '../services/places_service.dart';
-import '../services/supabase_service.dart';
+import '../services/local_storage_service.dart';
 import '../models.dart';
 
 class BasicInfoStepper extends StatefulWidget {
@@ -827,28 +825,7 @@ class _BasicInfoStepperState extends State<BasicInfoStepper> {
   }
 
   void _handleFinish() {
-    final session = Supabase.instance.client.auth.currentSession;
-    if (session == null) {
-      final snackBar = SnackBar(
-        content: const Center(child: Text('Please sign in to save your preferences', style: TextStyle(color: Colors.black))),
-        duration: const Duration(seconds: 2),
-        backgroundColor: Colors.red[200],
-      );
-
-      ScaffoldMessenger.of(context).showSnackBar(snackBar).closed.then((_) {
-        if (mounted) {
-          // Check if the widget is still mounted
-          Navigator.push<bool>(context, MaterialPageRoute(builder: (_) => const SignInScreen())).then((signedIn) {
-            if (mounted && signedIn == true) {
-              // Check again after the SignInScreen returns
-              _submitAndNavigate();
-            }
-          });
-        }
-      });
-    } else {
-      _submitAndNavigate();
-    }
+    _submitAndNavigate();
   }
 
   Future<void> _submitAndNavigate() async {
@@ -870,7 +847,7 @@ class _BasicInfoStepperState extends State<BasicInfoStepper> {
 
     String itineraryId;
     try {
-      itineraryId = await SupabaseService().createItinerary(preferences: preferences, title: 'Trip to ${preferences.destination}');
+      itineraryId = await LocalStorageService().createItinerary(preferences: preferences, title: 'Trip to ${preferences.destination}');
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

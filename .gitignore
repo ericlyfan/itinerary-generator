@@ -44,3 +44,6 @@ ios/Flutter/Generated.xcconfig
 # Logs & Debug Files
 debug.log
 *.log
+
+# Local data
+/data

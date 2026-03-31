@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'final_itinerary_screen.dart';
 import '../services/gemini_service.dart';
-import '../services/supabase_service.dart';
+import '../services/local_storage_service.dart';
 import '../models.dart';
 
 class RecommendationScreen extends StatefulWidget {
@@ -19,7 +19,7 @@ enum SortOption { recommended, highestRated, priceHighToLow, priceLowToHigh, nam
 class _RecommendationScreenState extends State<RecommendationScreen> with SingleTickerProviderStateMixin {
   late Future<Map<String, dynamic>> _recommendationsFuture;
   final GeminiService _geminiService = GeminiService();
-  final SupabaseService _supabaseService = SupabaseService();
+  final LocalStorageService _localStorageService = LocalStorageService();
   final Set<String> _selectedAttractions = {};
   final Set<String> _selectedRestaurants = {};
 
@@ -112,7 +112,7 @@ class _RecommendationScreenState extends State<RecommendationScreen> with Single
     });
 
     try {
-      final response = await _supabaseService.supabase.from('itineraries').select('preferences').eq('id', widget.itineraryId).single();
+      final response = await _localStorageService.getItinerary(widget.itineraryId);
       final preferencesData = response['preferences'];
 
       // Create a TripPreferences object from the fetched data
@@ -165,7 +165,7 @@ class _RecommendationScreenState extends State<RecommendationScreen> with Single
     });
 
     try {
-      final response = await _supabaseService.supabase.from('itineraries').select('preferences').eq('id', widget.itineraryId).single();
+      final response = await _localStorageService.getItinerary(widget.itineraryId);
       final preferencesData = response['preferences'];
 
       // Create a TripPreferences object from the fetched data
@@ -636,7 +636,7 @@ class _RecommendationScreenState extends State<RecommendationScreen> with Single
                         _selectedAttractions.add(attraction.name);
                       }
                     });
-                    await _supabaseService.updateItinerarySelections(
+                    await _localStorageService.updateItinerarySelections(
                       itineraryId: widget.itineraryId,
                       selectedAttractions:
                           _allAttractions.where((a) => _selectedAttractions.contains(a.name)).map((a) => a.toJson()).toList(),
@@ -898,7 +898,7 @@ class _RecommendationScreenState extends State<RecommendationScreen> with Single
                         _selectedRestaurants.add(restaurant.name);
                       }
                     });
-                    await _supabaseService.updateItinerarySelections(
+                    await _localStorageService.updateItinerarySelections(
                       itineraryId: widget.itineraryId,
                       selectedAttractions:
                           _allAttractions.where((a) => _selectedAttractions.contains(a.name)).map((a) => a.toJson()).toList(),
@@ -1074,7 +1074,7 @@ class _RecommendationScreenState extends State<RecommendationScreen> with Single
     });
 
     try {
-      final response = await _supabaseService.supabase.from('itineraries').select('preferences').eq('id', widget.itineraryId).single();
+      final response = await _localStorageService.getItinerary(widget.itineraryId);
       final currentPreferences = response['preferences'];
 
       // Initialize edited preferences with the fetched preferences
@@ -1380,7 +1380,7 @@ class _RecommendationScreenState extends State<RecommendationScreen> with Single
 
   Future<void> _updateTripPreferences() async {
     try {
-      final response = await _supabaseService.supabase.from('itineraries').select('preferences').eq('id', widget.itineraryId).single();
+      final response = await _localStorageService.getItinerary(widget.itineraryId);
       final currentPreferences = response['preferences'];
       final updatedPreferences = <String, dynamic>{...currentPreferences};
 
@@ -1390,8 +1390,7 @@ class _RecommendationScreenState extends State<RecommendationScreen> with Single
       updatedPreferences['diningPreferences'] = _editedPreferences['diningPreferences'];
       updatedPreferences['considerations'] = _editedPreferences['considerations'];
 
-      // Update itinerary in Supabase
-      await _supabaseService.supabase.from('itineraries').update({'preferences': updatedPreferences}).eq('id', widget.itineraryId);
+      await _localStorageService.updatePreferences(itineraryId: widget.itineraryId, preferences: updatedPreferences);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

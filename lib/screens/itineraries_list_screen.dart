@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../services/supabase_service.dart';
-import '../services/places_service.dart';
+import '../services/local_storage_service.dart';
 import '../models.dart';
 import 'final_itinerary_screen.dart';
-import 'auth/profile_screen.dart';
 import 'basic_info.dart';
 
 class ItinerariesListScreen extends StatefulWidget {
@@ -15,11 +13,9 @@ class ItinerariesListScreen extends StatefulWidget {
 }
 
 class _ItinerariesListScreenState extends State<ItinerariesListScreen> with TickerProviderStateMixin {
-  final SupabaseService _supabaseService = SupabaseService();
-  final PlacesApiService _placesService = PlacesApiService();
+  final LocalStorageService _localStorageService = LocalStorageService();
   final List<Map<String, dynamic>> _pastTrips = [];
   final List<Map<String, dynamic>> _currentUpcomingTrips = [];
-  final Map<String, String> _destinationImages = {};
   List<Map<String, dynamic>> _itineraries = [];
   bool _isLoading = true;
   TabController? _tabController;
@@ -34,7 +30,6 @@ class _ItinerariesListScreenState extends State<ItinerariesListScreen> with Tick
   @override
   void dispose() {
     _tabController?.dispose();
-    _placesService.dispose();
     super.dispose();
   }
 
@@ -44,29 +39,18 @@ class _ItinerariesListScreenState extends State<ItinerariesListScreen> with Tick
     });
 
     try {
-      final user = _supabaseService.currentUser;
-      if (user == null) {
-        setState(() {
-          _isLoading = false;
-        });
-        return;
-      }
-
-      final response = await _supabaseService.supabase
-          .from('itineraries')
-          .select('id, title, destination, start_date, end_date, finalized_itinerary, created_at')
-          .eq('user_id', user.id)
-          .not('finalized_itinerary', 'is', null)
-          .order('start_date', ascending: false);
+      final all = await _localStorageService.getAllItineraries();
+      final response = all
+          .where((i) => i['finalized_itinerary'] != null)
+          .toList()
+        ..sort((a, b) => (b['start_date'] ?? '').compareTo(a['start_date'] ?? ''));
 
       setState(() {
-        _itineraries = List<Map<String, dynamic>>.from(response);
+        _itineraries = response;
         _filterTrips();
         _isLoading = false;
       });
 
-      // Load images for destinations
-      _loadDestinationImages();
     } catch (e) {
       setState(() {
         _isLoading = false;
@@ -100,23 +84,6 @@ class _ItinerariesListScreenState extends State<ItinerariesListScreen> with Tick
     }
   }
 
-  Future<void> _loadDestinationImages() async {
-    for (final itinerary in _itineraries) {
-      final destination = itinerary['destination'] as String;
-      if (!_destinationImages.containsKey(destination)) {
-        // try {
-        //   final imageUrls = await _placesService.getPlaceImageUrls(destination, 'tourist attraction', destination);
-        //   if (imageUrls.isNotEmpty && mounted) {
-        //     setState(() {
-        //       _destinationImages[destination] = imageUrls.first;
-        //     });
-        //   }
-        // } catch (e) {
-        //   // Silently fail image loading
-        // }
-      }
-    }
-  }
 
   String _getCountdown(DateTime startDate) {
     final now = DateTime.now();
@@ -183,12 +150,6 @@ class _ItinerariesListScreenState extends State<ItinerariesListScreen> with Tick
                 ),
               ],
             ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.person_outline, size: 28),
-            onPressed: () {
-              Navigator.push(context, MaterialPageRoute(builder: (context) => const ProfileScreen()));
-            },
           ),
         ],
       ),
@@ -287,8 +248,6 @@ class _ItinerariesListScreenState extends State<ItinerariesListScreen> with Tick
     ];
     final cardColor = cardColors[index % cardColors.length];
 
-    final imageUrl = _destinationImages[destination];
-
     return Container(
       margin: const EdgeInsets.only(bottom: 24.0),
       child: Material(
@@ -296,6 +255,7 @@ class _ItinerariesListScreenState extends State<ItinerariesListScreen> with Tick
         child: InkWell(
           borderRadius: BorderRadius.circular(20),
           onTap: () => _openItinerary(itinerary),
+          onLongPress: () => _confirmDeleteItinerary(itinerary),
           child: Container(
             decoration: BoxDecoration(
               color: Colors.white,
@@ -305,52 +265,22 @@ class _ItinerariesListScreenState extends State<ItinerariesListScreen> with Tick
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Image/gradient header
                 Container(
                   height: 160,
                   decoration: const BoxDecoration(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
                   child: Stack(
                     children: [
-                      // Background - image or gradient
                       Container(
                         height: 160,
                         decoration: BoxDecoration(
                           borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-                          gradient:
-                              imageUrl == null
-                                  ? LinearGradient(
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
-                                    colors: [cardColor, cardColor.withValues(alpha: 0.8)],
-                                  )
-                                  : null,
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [cardColor, cardColor.withValues(alpha: 0.8)],
+                          ),
                         ),
-                        child:
-                            imageUrl != null
-                                ? ClipRRect(
-                                  borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-                                  child: Image.network(
-                                    imageUrl,
-                                    fit: BoxFit.cover,
-                                    width: double.infinity,
-                                    height: 160,
-                                    errorBuilder: (context, error, stackTrace) {
-                                      return Container(
-                                        decoration: BoxDecoration(
-                                          gradient: LinearGradient(
-                                            begin: Alignment.topLeft,
-                                            end: Alignment.bottomRight,
-                                            colors: [cardColor, cardColor.withValues(alpha: 0.8)],
-                                          ),
-                                          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                )
-                                : null,
                       ),
-                      // Dark overlay for better text readability
                       Container(
                         height: 160,
                         decoration: BoxDecoration(
@@ -362,9 +292,7 @@ class _ItinerariesListScreenState extends State<ItinerariesListScreen> with Tick
                           ),
                         ),
                       ),
-                      // Background pattern (only if no image)
-                      if (imageUrl == null)
-                        Positioned(right: -20, bottom: -20, child: Icon(Icons.landscape, size: 120, color: Colors.white.withAlpha(25))),
+                      Positioned(right: -20, bottom: -20, child: Icon(Icons.landscape, size: 120, color: Colors.white.withAlpha(25))),
                       // Content
                       Padding(
                         padding: const EdgeInsets.all(20),
@@ -507,6 +435,29 @@ class _ItinerariesListScreenState extends State<ItinerariesListScreen> with Tick
         ),
       ),
     );
+  }
+
+  Future<void> _confirmDeleteItinerary(Map<String, dynamic> itinerary) async {
+    final title = itinerary['title'] as String;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Itinerary'),
+        content: Text('Are you sure you want to delete "$title"?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await _localStorageService.deleteItinerary(itinerary['id'] as String);
+      _loadItineraries();
+    }
   }
 
   Future<void> _openItinerary(Map<String, dynamic> itinerary) async {

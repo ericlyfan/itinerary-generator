@@ -40,17 +40,15 @@ class _ItinerariesListScreenState extends State<ItinerariesListScreen> with Tick
 
     try {
       final all = await _localStorageService.getAllItineraries();
-      final response = all
-          .where((i) => i['finalized_itinerary'] != null)
-          .toList()
-        ..sort((a, b) => (b['start_date'] ?? '').compareTo(a['start_date'] ?? ''));
+      final response =
+          all.where((i) => i['finalized_itinerary'] != null).toList()
+            ..sort((a, b) => (b['start_date'] ?? '').compareTo(a['start_date'] ?? ''));
 
       setState(() {
         _itineraries = response;
         _filterTrips();
         _isLoading = false;
       });
-
     } catch (e) {
       setState(() {
         _isLoading = false;
@@ -83,7 +81,6 @@ class _ItinerariesListScreenState extends State<ItinerariesListScreen> with Tick
       }
     }
   }
-
 
   String _getCountdown(DateTime startDate) {
     final now = DateTime.now();
@@ -441,17 +438,15 @@ class _ItinerariesListScreenState extends State<ItinerariesListScreen> with Tick
     final title = itinerary['title'] as String;
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Itinerary'),
-        content: Text('Are you sure you want to delete "$title"?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Delete Itinerary'),
+            content: Text('Are you sure you want to delete "$title"?'),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+              TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Delete', style: TextStyle(color: Colors.red))),
+            ],
           ),
-        ],
-      ),
     );
 
     if (confirmed == true) {
